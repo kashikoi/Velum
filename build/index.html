@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Velum</title>
+  <meta name="description" content="A local-first meal planner: a personal recipe library, a weekly breakfast/lunch/dinner menu and a shopping list that builds itself." />
+  <meta name="theme-color" content="#163e7a" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=2026.10.31.1" />
+  <link rel="apple-touch-icon" href="icon.svg?v=2026.10.31.1" />
+  <link rel="manifest" href="manifest.webmanifest?v=2026.10.31.1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="styles.css?v=2026.10.31.1" />
+  <script>
+    // Resolve atmosphere before first paint to prevent a flash of the wrong theme.
+    try {
+      var pref = localStorage.getItem("velum_cloud_theme") || "day";
+      var mode = pref;
+      if (pref === "random") {
+        var modes = ["day", "twilight", "night"];
+        mode = sessionStorage.getItem("velum_cloud_active_theme");
+        if (modes.indexOf(mode) < 0) {
+          mode = modes[Math.floor(Math.random() * modes.length)];
+          sessionStorage.setItem("velum_cloud_active_theme", mode);
+        }
+      }
+      if (mode === "day") document.documentElement.classList.add("day");
+      else if (mode === "twilight") document.documentElement.classList.add("twilight");
+      // night = default (no class)
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <!-- Ambient scenic background: a stacked lenticular cloud over the Flatirons and a sleepy downtown -->
+  <div class="scenic-bg" aria-hidden="true">
+    <div class="scenic-sky"></div>
+    <div class="scenic-stars"></div>
+    <div class="celestial celestial--moon"><span class="celestial__glow"></span><span class="celestial__disc"></span></div>
+    <svg class="scenic-scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="var(--sun)" stop-opacity="0.95" />
+          <stop offset="0.35" stop-color="var(--sun)" stop-opacity="0.45" />
+          <stop offset="1" stop-color="var(--sun)" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="mtnGrad" x1="0" y1="0" x2="1" y2="0.4">
+          <stop offset="0" stop-color="var(--mtn-lit)" />
+          <stop offset="0.45" stop-color="var(--mtn-mid)" />
+          <stop offset="1" stop-color="var(--mtn-shadow)" />
+        </linearGradient>
+        <linearGradient id="lensBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="var(--lens-light)" />
+          <stop offset="1" stop-color="var(--lens-shadow)" />
+        </linearGradient>
+        <filter id="lensSoft" x="-10%" y="-30%" width="120%" height="160%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+        <filter id="lensEdge" x="-10%" y="-40%" width="120%" height="180%">
+          <feGaussianBlur stdDeviation="2.2" />
+        </filter>
+        <filter id="wisp" x="-20%" y="-200%" width="140%" height="500%">
+          <feGaussianBlur stdDeviation="7 3" />
+        </filter>
+        <filter id="cirrusBlur" x="-20%" y="-100%" width="140%" height="300%">
+          <feGaussianBlur stdDeviation="16" />
+        </filter>
+        <filter id="puffBlur" x="-20%" y="-50%" width="140%" height="200%">
+          <feGaussianBlur stdDeviation="2.5" />
+        </filter>
+      </defs>
+
+      <!-- sun hiding behind the cirrus veil -->
+      <circle cx="1440" cy="70" r="300" fill="url(#sunGlow)" class="sun" />
+
+      <!-- cirrus veil sweeping across the upper right -->
+      <g class="cirrus" fill="var(--cirrus)" filter="url(#cirrusBlur)">
+        <ellipse cx="1280" cy="120" rx="420" ry="46" transform="rotate(-10 1280 120)" opacity="0.55" />
+        <ellipse cx="1380" cy="210" rx="330" ry="22" transform="rotate(-14 1380 210)" opacity="0.45" />
+        <ellipse cx="1080" cy="70" rx="300" ry="26" transform="rotate(-6 1080 70)" opacity="0.3" />
+        <ellipse cx="1480" cy="40" rx="220" ry="40" opacity="0.6" />
+      </g>
+
+      <!-- the lenticular "velum": stacked saucer plates with sunlit rims and trailing wisps -->
+      <g class="lens">
+        <g fill="var(--lens-light)" filter="url(#wisp)" opacity="0.55">
+          <ellipse cx="420" cy="420" rx="170" ry="9" />
+          <ellipse cx="380" cy="478" rx="150" ry="7" />
+          <ellipse cx="430" cy="540" rx="130" ry="6" />
+          <ellipse cx="300" cy="604" rx="120" ry="6" />
+        </g>
+        <path fill="url(#lensBody)" filter="url(#lensSoft)" d="M 420 420 C 640 350 980 318 1210 336 C 1200 420 1150 520 1100 560 C 900 590 640 600 470 600 C 430 560 410 480 420 420 Z" />
+        <path fill="var(--lens-light)" filter="url(#lensEdge)" d="M 370 412 C 520 350 860 298 1216 330 C 1224 352 1206 370 1170 381 C 1000 396 760 401 560 410 C 470 416 404 422 370 412 Z" />
+        <path fill="var(--lens-mid)" filter="url(#lensEdge)" opacity="0.9" d="M 470 470 C 640 438 900 418 1152 404 C 1138 440 1112 470 1080 482 C 900 492 700 498 540 505 C 500 505 474 490 470 470 Z" />
+        <path fill="var(--lens-light)" filter="url(#lensEdge)" opacity="0.85" d="M 520 560 C 680 540 900 528 1102 520 C 1092 546 1076 568 1050 580 C 880 590 700 596 560 600 C 535 596 520 578 520 560 Z" />
+        <path fill="var(--lens-light)" filter="url(#lensEdge)" opacity="0.75" d="M 300 655 C 420 638 560 626 700 622 C 760 620 800 624 822 628 C 720 645 540 660 320 668 Z" />
+        <g fill="none" stroke="var(--lens-rim)" stroke-linecap="round" filter="url(#lensEdge)">
+          <path stroke-width="9" d="M 1120 330 C 1236 336 1222 368 1168 383" />
+          <path stroke-width="8" d="M 1100 405 C 1172 404 1136 470 1078 485" />
+          <path stroke-width="7" d="M 1040 521 C 1112 518 1082 574 1046 583" />
+          <path stroke-width="4" opacity="0.7" d="M 520 410 C 700 400 900 396 1120 385" />
+        </g>
+      </g>
+
+      <!-- little fair-weather puffs near the foothills -->
+      <g class="puffs" fill="var(--puff)" filter="url(#puffBlur)">
+        <g opacity="0.95"><ellipse cx="80" cy="690" rx="34" ry="9" /><ellipse cx="96" cy="684" rx="18" ry="9" /></g>
+        <g opacity="0.95"><ellipse cx="214" cy="700" rx="64" ry="12" /><ellipse cx="200" cy="690" rx="26" ry="12" /><ellipse cx="236" cy="690" rx="22" ry="11" /></g>
+        <g opacity="0.85"><ellipse cx="620" cy="661" rx="40" ry="9" /></g>
+        <g opacity="0.95"><ellipse cx="696" cy="690" rx="40" ry="12" /><ellipse cx="704" cy="680" rx="20" ry="10" /></g>
+        <g opacity="0.9"><ellipse cx="575" cy="725" rx="24" ry="6" /><ellipse cx="660" cy="726" rx="24" ry="6" /></g>
+        <g opacity="0.9"><ellipse cx="792" cy="700" rx="18" ry="8" /></g>
+      </g>
+
+      <!-- distant forested ridge -->
+      <path fill="var(--ridge)" d="M -20 770 C 160 752 360 744 560 738 C 650 735 720 732 790 730 L 1600 760 L 1620 900 L -20 900 Z" />
+
+      <!-- the Flatirons massif -->
+      <path fill="url(#mtnGrad)" d="M 760 740 C 800 712 850 680 892 652 C 925 630 950 612 972 604 L 988 600 C 1000 606 1016 616 1040 626 C 1080 610 1110 594 1140 584 C 1170 572 1200 556 1230 548 C 1280 532 1330 514 1390 510 C 1420 512 1450 516 1484 522 C 1530 534 1570 548 1620 562 L 1620 790 L 760 790 Z" />
+      <path fill="var(--mtn-shadow)" opacity="0.35" d="M 988 600 C 1000 640 1020 690 1050 760 L 960 760 C 970 700 980 650 988 600 Z" />
+      <path fill="var(--mtn-shadow)" opacity="0.3" d="M 1390 510 C 1380 580 1360 660 1330 770 L 1460 770 C 1440 680 1415 590 1390 510 Z" />
+      <path fill="var(--mtn-snow)" opacity="0.55" d="M 972 604 L 988 600 C 994 604 1000 608 1006 612 L 990 618 L 980 614 Z" />
+
+      <!-- snowy foothills / mesa -->
+      <path fill="var(--foothill)" d="M 140 772 C 300 760 520 752 700 748 C 760 734 820 726 900 730 C 1040 728 1200 738 1320 742 L 1420 760 L 1420 800 L 140 800 Z" />
+      <g fill="var(--snow)" opacity="var(--snow-opacity)">
+        <ellipse cx="1197" cy="753" rx="25.4" ry="3.8" />
+        <ellipse cx="934" cy="734" rx="22.2" ry="2.6" />
+        <ellipse cx="1282" cy="742" rx="21.7" ry="2.8" />
+        <ellipse cx="1383" cy="734" rx="24.4" ry="2.1" />
+        <ellipse cx="1365" cy="739" rx="17.5" ry="3.4" />
+        <ellipse cx="742" cy="759" rx="21.1" ry="4.1" />
+        <ellipse cx="1190" cy="755" rx="6.7" ry="2.0" />
+        <ellipse cx="794" cy="753" rx="15.4" ry="3.4" />
+        <ellipse cx="1000" cy="745" rx="19.2" ry="2.1" />
+        <ellipse cx="1120" cy="750" rx="22.8" ry="1.7" />
+        <ellipse cx="1400" cy="741" rx="11.6" ry="2.5" />
+        <ellipse cx="1096" cy="744" rx="21.9" ry="1.9" />
+        <ellipse cx="862" cy="751" rx="20.6" ry="2.3" />
+        <ellipse cx="1066" cy="749" rx="19.1" ry="2.0" />
+        <ellipse cx="1104" cy="759" rx="10.9" ry="2.6" />
+        <ellipse cx="1370" cy="745" rx="13.0" ry="2.5" />
+        <ellipse cx="842" cy="757" rx="23.8" ry="4.1" />
+        <ellipse cx="939" cy="740" rx="8.9" ry="2.7" />
+        <ellipse cx="786" cy="760" rx="11.7" ry="3.7" />
+        <ellipse cx="815" cy="755" rx="23.5" ry="1.7" />
+        <ellipse cx="934" cy="765" rx="7.6" ry="3.5" />
+        <ellipse cx="1237" cy="760" rx="24.4" ry="1.8" />
+        <ellipse cx="1035" cy="753" rx="13.8" ry="2.5" />
+        <ellipse cx="1003" cy="769" rx="22.3" ry="3.8" />
+        <ellipse cx="1272" cy="767" rx="8.7" ry="4.0" />
+        <ellipse cx="1034" cy="746" rx="21.9" ry="3.3" />
+        <ellipse cx="1350" cy="768" rx="21.3" ry="1.8" />
+        <ellipse cx="1217" cy="746" rx="23.7" ry="2.5" />
+        <ellipse cx="979" cy="745" rx="19.5" ry="3.5" />
+        <ellipse cx="1361" cy="737" rx="11.3" ry="2.6" />
+        <ellipse cx="751" cy="738" rx="10.6" ry="1.7" />
+        <ellipse cx="1050" cy="739" rx="9.5" ry="3.5" />
+        <ellipse cx="976" cy="769" rx="13.5" ry="2.3" />
+        <ellipse cx="990" cy="734" rx="12.4" ry="2.7" />
+        <ellipse cx="973" cy="766" rx="13.8" ry="2.5" />
+        <ellipse cx="771" cy="753" rx="10.5" ry="3.5" />
+        <ellipse cx="1273" cy="750" rx="6.8" ry="2.8" />
+        <ellipse cx="786" cy="739" rx="8.6" ry="3.9" />
+        <ellipse cx="1092" cy="735" rx="9.9" ry="2.8" />
+        <ellipse cx="1235" cy="744" rx="13.9" ry="2.0" />
+        <ellipse cx="1360" cy="738" rx="7.6" ry="3.6" />
+        <ellipse cx="861" cy="737" rx="24.5" ry="2.7" />
+        <ellipse cx="748" cy="764" rx="23.7" ry="3.7" />
+        <ellipse cx="1313" cy="770" rx="14.9" ry="2.9" />
+        <ellipse cx="1244" cy="752" rx="13.2" ry="2.3" />
+        <ellipse cx="1177" cy="753" rx="9.7" ry="3.8" />
+        <ellipse cx="1125" cy="764" rx="7.5" ry="2.6" />
+        <ellipse cx="943" cy="754" rx="19.1" ry="3.5" />
+        <ellipse cx="1237" cy="735" rx="24.9" ry="3.2" />
+        <ellipse cx="782" cy="767" rx="7.5" ry="4.1" />
+        <ellipse cx="1122" cy="736" rx="22.6" ry="2.4" />
+        <ellipse cx="1239" cy="755" rx="12.2" ry="3.5" />
+        <ellipse cx="1149" cy="752" rx="18.6" ry="2.5" />
+        <ellipse cx="733" cy="742" rx="9.9" ry="4.2" />
+        <ellipse cx="768" cy="736" rx="8.1" ry="3.8" />
+        <ellipse cx="874" cy="751" rx="20.6" ry="3.8" />
+        <ellipse cx="1234" cy="743" rx="22.8" ry="2.3" />
+        <ellipse cx="1194" cy="738" rx="23.8" ry="3.8" />
+        <ellipse cx="1199" cy="749" rx="25.9" ry="2.6" />
+        <ellipse cx="1323" cy="744" rx="18.1" ry="3.6" />
+        <ellipse cx="846" cy="750" rx="20.1" ry="3.2" />
+        <ellipse cx="821" cy="755" rx="17.5" ry="3.7" />
+        <ellipse cx="1143" cy="744" rx="18.8" ry="3.8" />
+        <ellipse cx="903" cy="743" rx="19.8" ry="2.9" />
+        <ellipse cx="1272" cy="768" rx="15.6" ry="2.1" />
+        <ellipse cx="822" cy="746" rx="21.3" ry="3.6" />
+        <ellipse cx="890" cy="759" rx="23.3" ry="4.0" />
+        <ellipse cx="1134" cy="754" rx="6.6" ry="2.9" />
+        <ellipse cx="1100" cy="740" rx="15.6" ry="3.3" />
+        <ellipse cx="1194" cy="768" rx="21.4" ry="2.3" />
+        <ellipse cx="393" cy="767" rx="8.1" ry="2.2" />
+        <ellipse cx="270" cy="750" rx="12.3" ry="1.2" />
+        <ellipse cx="486" cy="754" rx="12.7" ry="2.1" />
+        <ellipse cx="162" cy="757" rx="14.8" ry="2.1" />
+        <ellipse cx="228" cy="752" rx="12.1" ry="1.9" />
+        <ellipse cx="386" cy="752" rx="10.0" ry="2.8" />
+        <ellipse cx="528" cy="755" rx="6.5" ry="2.6" />
+        <ellipse cx="538" cy="760" rx="14.5" ry="2.7" />
+        <ellipse cx="352" cy="749" rx="5.4" ry="1.3" />
+        <ellipse cx="479" cy="766" rx="5.2" ry="2.7" />
+        <ellipse cx="512" cy="766" rx="10.7" ry="1.6" />
+        <ellipse cx="502" cy="767" rx="9.9" ry="2.6" />
+        <ellipse cx="260" cy="755" rx="7.8" ry="1.6" />
+        <ellipse cx="435" cy="767" rx="11.4" ry="2.0" />
+        <ellipse cx="233" cy="751" rx="13.5" ry="1.8" />
+        <ellipse cx="227" cy="750" rx="16.0" ry="1.5" />
+        <ellipse cx="648" cy="761" rx="6.6" ry="1.4" />
+        <ellipse cx="586" cy="756" rx="12.5" ry="2.5" />
+        <ellipse cx="197" cy="768" rx="9.9" ry="2.4" />
+        <ellipse cx="691" cy="754" rx="9.4" ry="1.7" />
+        <ellipse cx="669" cy="749" rx="8.9" ry="2.6" />
+        <ellipse cx="435" cy="767" rx="15.5" ry="1.9" />
+        <ellipse cx="506" cy="770" rx="11.0" ry="1.3" />
+        <ellipse cx="320" cy="750" rx="13.5" ry="1.8" />
+        <ellipse cx="340" cy="752" rx="6.8" ry="1.5" />
+        <ellipse cx="592" cy="766" rx="9.8" ry="1.5" />
+      </g>
+
+      <!-- tree line -->
+      <path fill="var(--trees)" d="M -20 800 Q -14 778 -7 784 Q -3 771 1 784 Q 6 772 12 785 Q 18 778 24 782 Q 33 773 42 785 Q 48 775 53 783 Q 59 776 64 783 Q 71 776 79 782 Q 84 774 88 785 Q 97 773 106 784 Q 110 778 115 782 Q 121 770 128 784 Q 135 780 142 785 Q 149 779 157 783 Q 162 779 168 783 Q 177 773 185 786 Q 191 776 198 785 Q 206 773 214 783 Q 220 774 226 786 Q 235 774 244 784 Q 253 780 261 783 Q 268 777 274 784 Q 281 780 289 786 Q 297 772 304 783 Q 311 771 317 786 Q 324 772 331 783 Q 335 780 340 783 Q 348 772 356 786 Q 364 772 372 785 Q 377 774 381 786 Q 386 779 390 783 Q 396 776 401 783 Q 408 772 415 785 Q 422 773 430 785 Q 438 771 446 784 Q 454 774 462 785 Q 470 779 478 784 Q 483 780 489 784 Q 497 775 505 785 Q 510 773 516 786 Q 523 773 531 783 Q 538 778 546 786 Q 555 772 564 785 Q 569 773 573 783 Q 580 778 586 786 Q 594 775 602 786 Q 607 774 612 786 Q 616 773 620 784 Q 624 772 629 784 Q 635 775 640 783 Q 648 773 655 783 Q 662 773 668 784 Q 676 779 685 785 Q 693 773 700 783 Q 708 774 716 786 Q 720 775 725 784 Q 729 774 734 783 Q 739 780 743 785 Q 750 772 757 784 Q 762 776 767 784 Q 772 772 778 785 Q 786 779 795 784 Q 802 778 809 783 Q 813 779 817 784 Q 823 778 829 783 Q 838 773 847 785 Q 852 780 856 783 Q 862 773 867 786 Q 873 774 879 782 Q 885 777 890 786 Q 899 777 907 782 Q 913 779 920 786 Q 928 775 936 783 Q 942 774 947 785 Q 955 775 963 786 Q 971 777 980 782 Q 985 774 991 784 Q 999 771 1007 785 Q 1015 774 1023 785 Q 1027 770 1031 782 Q 1036 778 1041 786 Q 1045 777 1050 785 Q 1055 780 1061 783 Q 1066 779 1071 785 Q 1078 776 1084 782 Q 1091 779 1098 782 Q 1107 774 1115 785 Q 1120 773 1125 782 Q 1132 778 1139 784 Q 1145 775 1150 786 Q 1155 775 1160 785 Q 1164 776 1169 783 Q 1175 778 1181 782 Q 1185 777 1189 785 Q 1193 777 1198 784 Q 1204 779 1211 782 Q 1218 775 1226 784 Q 1235 776 1244 782 Q 1250 773 1257 785 Q 1262 777 1266 783 Q 1272 775 1279 786 Q 1286 778 1292 782 Q 1301 774 1309 783 Q 1315 778 1321 784 Q 1327 775 1333 786 Q 1340 774 1347 785 Q 1351 772 1355 786 Q 1359 775 1364 782 Q 1369 774 1374 783 Q 1380 774 1386 783 Q 1391 770 1395 782 Q 1402 771 1408 785 Q 1414 773 1419 782 Q 1425 772 1430 784 Q 1435 773 1440 784 Q 1447 780 1455 782 Q 1464 776 1473 784 Q 1479 772 1484 786 Q 1493 775 1502 786 Q 1508 771 1514 786 Q 1518 771 1523 783 Q 1530 779 1537 784 Q 1542 780 1546 785 Q 1552 770 1557 784 Q 1563 771 1569 785 Q 1576 776 1583 782 Q 1591 771 1600 784 Q 1606 770 1612 784 Q 1618 775 1624 783 L 1620 820 L -20 820 Z" />
+
+      <!-- downtown rooftops -->
+      <g class="city-blocks">
+        <rect class="city" x="-10" y="850" width="120" height="60" />
+        <rect class="city" x="112" y="859" width="68" height="51" />
+        <rect class="city" x="179" y="852" width="75" height="58" />
+        <rect class="city" x="259" y="833" width="54" height="77" />
+        <rect class="city-2" x="315" y="808" width="105" height="102" />
+        <rect class="city-2" x="421" y="777" width="50" height="133" />
+        <rect class="city-2" x="476" y="819" width="83" height="91" />
+        <rect class="city-2" x="563" y="775" width="129" height="135" />
+        <rect class="city" x="694" y="810" width="41" height="100" />
+        <rect class="city-2" x="734" y="806" width="82" height="104" />
+        <rect class="city-2" x="814" y="837" width="100" height="73" />
+        <rect class="city" x="914" y="814" width="130" height="96" />
+        <rect class="city" x="1046" y="816" width="100" height="94" />
+        <rect class="city-2" x="1147" y="865" width="100" height="45" />
+        <rect class="city" x="1247" y="776" width="54" height="134" />
+        <rect class="city-2" x="1306" y="792" width="43" height="118" />
+        <rect class="city" x="1351" y="867" width="51" height="43" />
+        <rect class="city" x="1401" y="815" width="97" height="95" />
+        <rect class="city-2" x="1504" y="869" width="103" height="41" />
+      </g>
+      <g class="city-windows" fill="var(--window)" opacity="var(--window-opacity)">
+        <rect x="-4" y="860" width="7" height="6" />
+        <rect x="66" y="860" width="7" height="6" />
+        <rect x="52" y="876" width="7" height="6" />
+        <rect x="66" y="876" width="7" height="6" />
+        <rect x="146" y="869" width="7" height="6" />
+        <rect x="199" y="862" width="7" height="6" />
+        <rect x="199" y="878" width="7" height="6" />
+        <rect x="213" y="878" width="7" height="6" />
+        <rect x="265" y="843" width="7" height="6" />
+        <rect x="279" y="843" width="7" height="6" />
+        <rect x="293" y="843" width="7" height="6" />
+        <rect x="279" y="859" width="7" height="6" />
+        <rect x="265" y="875" width="7" height="6" />
+        <rect x="279" y="875" width="7" height="6" />
+        <rect x="335" y="818" width="7" height="6" />
+        <rect x="363" y="818" width="7" height="6" />
+        <rect x="321" y="834" width="7" height="6" />
+        <rect x="349" y="834" width="7" height="6" />
+        <rect x="363" y="834" width="7" height="6" />
+        <rect x="349" y="850" width="7" height="6" />
+        <rect x="377" y="850" width="7" height="6" />
+        <rect x="349" y="866" width="7" height="6" />
+        <rect x="363" y="866" width="7" height="6" />
+        <rect x="377" y="866" width="7" height="6" />
+        <rect x="427" y="787" width="7" height="6" />
+        <rect x="441" y="787" width="7" height="6" />
+        <rect x="427" y="803" width="7" height="6" />
+        <rect x="441" y="819" width="7" height="6" />
+        <rect x="441" y="835" width="7" height="6" />
+        <rect x="441" y="867" width="7" height="6" />
+        <rect x="482" y="829" width="7" height="6" />
+        <rect x="524" y="829" width="7" height="6" />
+        <rect x="482" y="861" width="7" height="6" />
+        <rect x="538" y="861" width="7" height="6" />
+        <rect x="482" y="877" width="7" height="6" />
+        <rect x="510" y="877" width="7" height="6" />
+        <rect x="524" y="877" width="7" height="6" />
+        <rect x="597" y="785" width="7" height="6" />
+        <rect x="625" y="785" width="7" height="6" />
+        <rect x="639" y="785" width="7" height="6" />
+        <rect x="653" y="785" width="7" height="6" />
+        <rect x="583" y="801" width="7" height="6" />
+        <rect x="597" y="801" width="7" height="6" />
+        <rect x="639" y="801" width="7" height="6" />
+        <rect x="667" y="801" width="7" height="6" />
+        <rect x="597" y="817" width="7" height="6" />
+        <rect x="611" y="817" width="7" height="6" />
+        <rect x="639" y="817" width="7" height="6" />
+        <rect x="667" y="817" width="7" height="6" />
+        <rect x="597" y="833" width="7" height="6" />
+        <rect x="611" y="833" width="7" height="6" />
+        <rect x="653" y="833" width="7" height="6" />
+        <rect x="597" y="849" width="7" height="6" />
+        <rect x="611" y="849" width="7" height="6" />
+        <rect x="625" y="849" width="7" height="6" />
+        <rect x="639" y="849" width="7" height="6" />
+        <rect x="583" y="865" width="7" height="6" />
+        <rect x="639" y="865" width="7" height="6" />
+        <rect x="667" y="865" width="7" height="6" />
+        <rect x="700" y="836" width="7" height="6" />
+        <rect x="714" y="836" width="7" height="6" />
+        <rect x="700" y="852" width="7" height="6" />
+        <rect x="714" y="852" width="7" height="6" />
+        <rect x="700" y="868" width="7" height="6" />
+        <rect x="714" y="868" width="7" height="6" />
+        <rect x="754" y="816" width="7" height="6" />
+        <rect x="782" y="816" width="7" height="6" />
+        <rect x="796" y="816" width="7" height="6" />
+        <rect x="768" y="832" width="7" height="6" />
+        <rect x="796" y="832" width="7" height="6" />
+        <rect x="740" y="848" width="7" height="6" />
+        <rect x="754" y="848" width="7" height="6" />
+        <rect x="782" y="848" width="7" height="6" />
+        <rect x="740" y="864" width="7" height="6" />
+        <rect x="768" y="864" width="7" height="6" />
+        <rect x="796" y="864" width="7" height="6" />
+        <rect x="740" y="880" width="7" height="6" />
+        <rect x="768" y="880" width="7" height="6" />
+        <rect x="782" y="880" width="7" height="6" />
+        <rect x="820" y="863" width="7" height="6" />
+        <rect x="834" y="863" width="7" height="6" />
+        <rect x="862" y="863" width="7" height="6" />
+        <rect x="848" y="879" width="7" height="6" />
+        <rect x="876" y="879" width="7" height="6" />
+        <rect x="890" y="879" width="7" height="6" />
+        <rect x="990" y="824" width="7" height="6" />
+        <rect x="920" y="840" width="7" height="6" />
+        <rect x="934" y="840" width="7" height="6" />
+        <rect x="962" y="840" width="7" height="6" />
+        <rect x="990" y="840" width="7" height="6" />
+        <rect x="1004" y="840" width="7" height="6" />
+        <rect x="948" y="856" width="7" height="6" />
+        <rect x="962" y="856" width="7" height="6" />
+        <rect x="1004" y="856" width="7" height="6" />
+        <rect x="920" y="872" width="7" height="6" />
+        <rect x="934" y="872" width="7" height="6" />
+        <rect x="948" y="872" width="7" height="6" />
+        <rect x="976" y="872" width="7" height="6" />
+        <rect x="990" y="872" width="7" height="6" />
+        <rect x="1052" y="826" width="7" height="6" />
+        <rect x="1066" y="826" width="7" height="6" />
+        <rect x="1094" y="826" width="7" height="6" />
+        <rect x="1094" y="842" width="7" height="6" />
+        <rect x="1094" y="858" width="7" height="6" />
+        <rect x="1122" y="858" width="7" height="6" />
+        <rect x="1080" y="874" width="7" height="6" />
+        <rect x="1094" y="874" width="7" height="6" />
+        <rect x="1122" y="874" width="7" height="6" />
+        <rect x="1253" y="786" width="7" height="6" />
+        <rect x="1267" y="802" width="7" height="6" />
+        <rect x="1267" y="818" width="7" height="6" />
+        <rect x="1267" y="850" width="7" height="6" />
+        <rect x="1312" y="802" width="7" height="6" />
+        <rect x="1326" y="802" width="7" height="6" />
+        <rect x="1312" y="834" width="7" height="6" />
+        <rect x="1312" y="850" width="7" height="6" />
+        <rect x="1407" y="825" width="7" height="6" />
+        <rect x="1421" y="825" width="7" height="6" />
+        <rect x="1435" y="825" width="7" height="6" />
+        <rect x="1435" y="841" width="7" height="6" />
+        <rect x="1407" y="857" width="7" height="6" />
+        <rect x="1435" y="857" width="7" height="6" />
+        <rect x="1463" y="857" width="7" height="6" />
+        <rect x="1407" y="873" width="7" height="6" />
+        <rect x="1421" y="873" width="7" height="6" />
+        <rect x="1435" y="873" width="7" height="6" />
+        <rect x="1449" y="873" width="7" height="6" />
+        <rect x="1477" y="873" width="7" height="6" />
+      </g>
+      <g class="city-lights" fill="var(--lights)">
+        <circle cx="1180" cy="840" r="2.4" />
+        <circle cx="1189" cy="835" r="3.4" />
+        <circle cx="1198" cy="835" r="2.7" />
+        <circle cx="1210" cy="840" r="2.5" />
+        <circle cx="1219" cy="835" r="3.3" />
+        <circle cx="1228" cy="836" r="2.2" />
+        <circle cx="1237" cy="835" r="3.3" />
+        <circle cx="1246" cy="836" r="2.5" />
+        <circle cx="1255" cy="835" r="2.9" />
+        <circle cx="1266" cy="841" r="2.7" />
+        <circle cx="1274" cy="836" r="3.1" />
+        <circle cx="1286" cy="838" r="2.9" />
+        <circle cx="1294" cy="837" r="3.3" />
+        <circle cx="1303" cy="838" r="2.3" />
+        <circle cx="1311" cy="837" r="2.9" />
+        <circle cx="1322" cy="840" r="3.2" />
+        <circle cx="1334" cy="839" r="3.0" />
+        <circle cx="1343" cy="836" r="2.6" />
+        <circle cx="1353" cy="837" r="2.6" />
+        <circle cx="1360" cy="840" r="2.3" />
+        <circle cx="1369" cy="837" r="3.3" />
+        <circle cx="1380" cy="838" r="3.1" />
+        <circle cx="1389" cy="838" r="3.1" />
+        <circle cx="1399" cy="836" r="2.6" />
+        <circle cx="1409" cy="838" r="2.8" />
+        <circle cx="1419" cy="839" r="3.3" />
+        <circle cx="1426" cy="840" r="2.7" />
+        <circle cx="1435" cy="836" r="2.5" />
+        <circle cx="1446" cy="839" r="2.6" />
+        <circle cx="1456" cy="837" r="2.8" />
+        <circle cx="1464" cy="839" r="2.6" />
+        <circle cx="1474" cy="840" r="2.2" />
+        <circle cx="1484" cy="840" r="3.1" />
+        <circle cx="1494" cy="841" r="2.3" />
+      </g>
+    </svg>
+  </div>
+
+  <div class="shell" id="shell">
+    <!-- ============ TOP BAR ============ -->
+    <header class="topbar" id="topbar">
+      <nav class="crumb" id="crumb" aria-label="Breadcrumb"></nav>
+      <div class="topbar__actions">
+        <button type="button" class="btn btn--beacon btn--tiny" id="topNewRecipeBtn">+ New recipe</button>
+        <button type="button" class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">&#9881;&#65039;</button>
+      </div>
+    </header>
+
+    <div class="app" id="app">
+      <!-- ============ LEFT RAIL ============ -->
+      <aside class="rail" id="rail">
+        <header class="rail__brand">
+          <svg class="brand__emblem" viewBox="0 0 120 80" role="img" aria-label="Velum lenticular cloud emblem">
+            <defs>
+              <linearGradient id="emblemLens" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#fffaf0" />
+                <stop offset="1" stop-color="#9aa6bb" />
+              </linearGradient>
+            </defs>
+            <path d="M 8 30 C 30 14 80 8 112 16 C 112 24 104 30 92 32 C 64 36 34 36 8 30 Z" fill="url(#emblemLens)" />
+            <path d="M 18 46 C 40 36 80 32 106 34 C 104 42 96 48 86 50 C 62 52 40 52 18 46 Z" fill="#c9d1de" />
+            <path d="M 30 62 C 50 56 78 54 98 54 C 96 60 90 64 82 66 C 64 68 46 68 30 62 Z" fill="url(#emblemLens)" />
+            <path d="M 100 16 C 116 18 112 28 96 32 M 96 34 C 110 36 102 46 88 50 M 90 54 C 102 56 96 64 84 66" fill="none" stroke="var(--beacon-bright)" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          <div>
+            <h1 class="brand__name">Velum</h1>
+            <p class="brand__tag">Recipes &middot; Menu &middot; Groceries</p>
+          </div>
+        </header>
+
+        <div class="rail__summary" id="railSummary"></div>
+
+        <ul class="nav-list" id="navList"></ul>
+
+        <button type="button" class="btn btn--beacon rail__new" id="planMealBtn">+ Plan a meal</button>
+        <p class="rail__version" id="appVersion"></p>
+      </aside>
+
+      <!-- ============ MAIN CANVAS ============ -->
+      <main class="canvas" id="canvas" tabindex="-1"></main>
+    </div>
+
+    <!-- ============ MOBILE TAB BAR ============ -->
+    <nav class="tabbar" id="tabbar" aria-label="Sections"></nav>
+  </div>
+
+  <!-- Recipe editor -->
+  <div class="modal" id="recipeModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card modal__card--xl" role="dialog" aria-modal="true" aria-labelledby="recipeTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="recipeTitle">New recipe</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form" id="recipeForm" autocomplete="off" novalidate>
+        <p class="form__error" id="rError" role="alert" hidden></p>
+        <div class="recipe-form__top">
+          <div class="photo-drop" id="rPhoto">
+            <div class="photo-drop__preview" id="rPhotoPreview"></div>
+            <div class="photo-drop__actions">
+              <button type="button" class="btn btn--ghost btn--tiny" id="rPhotoPick">Upload photo</button>
+              <button type="button" class="btn btn--ghost btn--tiny" id="rPhotoRemove" hidden>Remove</button>
+              <input type="file" id="rPhotoFile" accept="image/jpeg,image/png,image/webp,image/gif" hidden />
+            </div>
+          </div>
+          <div class="recipe-form__main">
+            <label class="field">
+              <span class="field__label">Recipe name</span>
+              <input class="field__input field__input--lg" id="rName" required maxlength="160" placeholder="e.g. Spicy Chicken Tacos" />
+            </label>
+            <label class="field">
+              <span class="field__label">Short description <em>(optional)</em></span>
+              <textarea class="field__input field__input--area" id="rDesc" rows="2" maxlength="2000"></textarea>
+            </label>
+            <div class="field">
+              <span class="field__label">Good for</span>
+              <div class="chip-toggle" id="rCats" role="group" aria-label="Meal categories"></div>
+            </div>
+          </div>
+        </div>
+        <div class="form__row form__row--4">
+          <label class="field">
+            <span class="field__label">Prep (min)</span>
+            <input class="field__input" id="rPrep" type="number" min="0" step="1" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span class="field__label">Cook (min)</span>
+            <input class="field__input" id="rCook" type="number" min="0" step="1" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span class="field__label">Total <em>(auto)</em></span>
+            <input class="field__input" id="rTotal" type="number" min="0" step="1" inputmode="numeric" />
+          </label>
+          <label class="field">
+            <span class="field__label">Serves</span>
+            <input class="field__input" id="rServings" type="number" min="0.25" step="any" inputmode="decimal" required />
+          </label>
+        </div>
+        <div class="form__row form__row--3">
+          <label class="field">
+            <span class="field__label">Cuisine</span>
+            <input class="field__input" id="rCuisine" list="cuisineList" maxlength="60" placeholder="e.g. Mexican" />
+            <datalist id="cuisineList"></datalist>
+          </label>
+          <label class="field">
+            <span class="field__label">Difficulty</span>
+            <select class="field__input" id="rDifficulty">
+              <option value="">—</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Tags <em>(comma separated)</em></span>
+            <input class="field__input" id="rTags" maxlength="400" placeholder="weeknight, vegetarian" />
+          </label>
+        </div>
+
+        <section class="editor-block">
+          <div class="editor-block__head">
+            <h3 class="subhead">Ingredients</h3>
+            <div class="row-actions">
+              <button type="button" class="btn btn--ghost btn--tiny" id="rPasteToggle">Paste a list</button>
+            </div>
+          </div>
+          <div class="paste-box" id="rPasteBox" hidden>
+            <textarea class="field__input field__input--area" id="rPasteText" rows="5" placeholder="One ingredient per line, e.g.&#10;2 cups all-purpose flour&#10;3 tbsp olive oil&#10;4 cloves garlic, minced&#10;Salt and pepper to taste"></textarea>
+            <div class="row-actions">
+              <button type="button" class="btn btn--beacon btn--tiny" id="rPasteApply">Add these ingredients</button>
+              <button type="button" class="btn btn--ghost btn--tiny" id="rPasteCancel">Cancel</button>
+            </div>
+          </div>
+          <div class="ing-rows" id="rIngredients"></div>
+          <button type="button" class="btn btn--ghost btn--tiny" id="rAddIng">+ Add ingredient</button>
+          <datalist id="unitList"></datalist>
+          <datalist id="ingredientNameList"></datalist>
+        </section>
+
+        <section class="editor-block">
+          <div class="editor-block__head"><h3 class="subhead">Instructions</h3></div>
+          <ol class="step-rows" id="rSteps"></ol>
+          <button type="button" class="btn btn--ghost btn--tiny" id="rAddStep">+ Add step</button>
+        </section>
+
+        <label class="field">
+          <span class="field__label">Notes <em>(optional)</em></span>
+          <textarea class="field__input field__input--area" id="rNotes" rows="2" maxlength="4000"></textarea>
+        </label>
+        <div class="form__row">
+          <label class="field">
+            <span class="field__label">Source link <em>(optional)</em></span>
+            <input class="field__input" id="rSource" type="url" maxlength="500" placeholder="https://" />
+          </label>
+          <label class="check-row check-row--center">
+            <input type="checkbox" id="rFavorite" />
+            <span>&#9829; Favorite</span>
+          </label>
+        </div>
+        <div class="form__actions">
+          <button type="button" class="btn btn--ghost" data-close>Cancel</button>
+          <button type="submit" class="btn btn--beacon">Save recipe <kbd>&#8984;S</kbd></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Recipe picker (assign to a meal slot) -->
+  <div class="modal" id="pickerModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card modal__card--wide modal__card--tall" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="pickerTitle">Add a meal</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="picker">
+        <div class="picker__slot" id="pickerSlot"></div>
+        <input class="search search--block" id="pickerSearch" type="search" placeholder="Search your recipes…" aria-label="Search recipes" />
+        <div class="seg seg--inline seg--scroll" id="pickerTabs"></div>
+        <ul class="picker__list" id="pickerList"></ul>
+        <div class="picker__foot">
+          <form class="picker__note" id="pickerNoteForm" autocomplete="off">
+            <input class="field__input" id="pickerNote" maxlength="160" placeholder="…or a quick note: Leftovers, Dinner out" aria-label="Quick note instead of a recipe" />
+            <button type="submit" class="btn btn--ghost btn--tiny">Add note</button>
+          </form>
+          <button type="button" class="btn btn--beacon btn--tiny" id="pickerNewRecipe">+ Create a new recipe</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meal details -->
+  <div class="modal" id="mealModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="mealTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="mealTitle">Meal</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form" id="mealForm" autocomplete="off" novalidate>
+        <p class="form__error" id="mError" role="alert" hidden></p>
+        <div class="meal-head" id="mHead"></div>
+        <label class="field" id="mTitleWrap">
+          <span class="field__label">Note</span>
+          <input class="field__input" id="mTitle" maxlength="160" />
+        </label>
+        <div class="field" id="mServingsWrap">
+          <span class="field__label">Servings for this meal</span>
+          <div class="stepper">
+            <button type="button" class="stepper__btn" data-step="-1" aria-label="Fewer servings">&minus;</button>
+            <input class="stepper__input" id="mServings" type="number" min="0.25" step="any" inputmode="decimal" aria-label="Servings" />
+            <button type="button" class="stepper__btn" data-step="1" aria-label="More servings">+</button>
+          </div>
+          <span class="field__hint" id="mServingsHint"></span>
+        </div>
+        <label class="field">
+          <span class="field__label">Note for this meal <em>(optional)</em></span>
+          <input class="field__input" id="mNote" maxlength="500" placeholder="e.g. Double the salsa" />
+        </label>
+        <div class="form__row">
+          <label class="field">
+            <span class="field__label">Day</span>
+            <input class="field__input" id="mDate" type="date" required />
+          </label>
+          <label class="field">
+            <span class="field__label">Meal</span>
+            <select class="field__input" id="mMeal">
+              <option value="breakfast">Breakfast</option>
+              <option value="lunch">Lunch</option>
+              <option value="dinner">Dinner</option>
+            </select>
+          </label>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" id="mDone" />
+          <span><strong>Made it</strong> &mdash; mark this meal as completed</span>
+        </label>
+        <div class="row-actions">
+          <button type="button" class="btn btn--ghost btn--tiny" id="mReplace">Replace recipe</button>
+          <button type="button" class="btn btn--ghost btn--tiny" id="mCopy">Copy to the day &amp; meal above</button>
+          <button type="button" class="btn btn--ghost btn--tiny" id="mView">View recipe</button>
+        </div>
+        <div class="form__actions">
+          <button type="button" class="btn btn--danger form__actions-left" id="mRemove">Remove</button>
+          <button type="button" class="btn btn--ghost" data-close>Cancel</button>
+          <button type="submit" class="btn btn--beacon">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Shopping item -->
+  <div class="modal" id="itemModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="itemTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="itemTitle">Item</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form" id="itemForm" autocomplete="off" novalidate>
+        <p class="form__error" id="iError" role="alert" hidden></p>
+        <label class="field">
+          <span class="field__label">Item</span>
+          <input class="field__input" id="iName" maxlength="160" required />
+        </label>
+        <div class="form__row">
+          <label class="field">
+            <span class="field__label">Quantity</span>
+            <input class="field__input" id="iQty" inputmode="decimal" placeholder="e.g. 2 or 1 1/2" />
+          </label>
+          <label class="field">
+            <span class="field__label">Unit</span>
+            <input class="field__input" id="iUnit" list="unitList" maxlength="20" placeholder="lb, cup, can…" />
+          </label>
+        </div>
+        <label class="field">
+          <span class="field__label">Aisle / category</span>
+          <select class="field__input" id="iCategory"></select>
+        </label>
+        <label class="check-row" id="iRememberWrap">
+          <input type="checkbox" id="iRemember" checked />
+          <span>Remember this category for next time</span>
+        </label>
+        <label class="field">
+          <span class="field__label">Note <em>(optional)</em></span>
+          <input class="field__input" id="iNote" maxlength="300" placeholder="e.g. the big jar" />
+        </label>
+        <div class="preview" id="iInfo"></div>
+        <div class="form__actions">
+          <button type="button" class="btn btn--danger form__actions-left" id="iDelete">Delete</button>
+          <button type="button" class="btn btn--ghost" id="iReset" hidden>Use menu amount</button>
+          <button type="button" class="btn btn--ghost" data-close>Cancel</button>
+          <button type="submit" class="btn btn--beacon">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ingredient catalog entry -->
+  <div class="modal" id="ingredientModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="ingredientTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="ingredientTitle">Ingredient</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form" id="ingredientForm" autocomplete="off" novalidate>
+        <p class="form__error" id="gError" role="alert" hidden></p>
+        <label class="field">
+          <span class="field__label">Name</span>
+          <input class="field__input" id="gName" maxlength="120" required />
+        </label>
+        <div class="form__row">
+          <label class="field">
+            <span class="field__label">Grocery category</span>
+            <select class="field__input" id="gCategory"></select>
+          </label>
+          <label class="field">
+            <span class="field__label">Default unit</span>
+            <input class="field__input" id="gUnit" list="unitList" maxlength="20" />
+          </label>
+        </div>
+        <label class="field">
+          <span class="field__label">Also known as <em>(comma separated)</em></span>
+          <input class="field__input" id="gAliases" maxlength="600" placeholder="e.g. scallions, spring onions" />
+        </label>
+        <label class="field">
+          <span class="field__label">Grams per cup <em>(optional &mdash; lets cups and grams combine)</em></span>
+          <input class="field__input" id="gDensity" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 120 for flour" />
+        </label>
+        <label class="field">
+          <span class="field__label">Notes</span>
+          <textarea class="field__input field__input--area" id="gNotes" rows="2" maxlength="1000"></textarea>
+        </label>
+        <div class="form__actions">
+          <button type="button" class="btn btn--danger form__actions-left" id="gDelete" hidden>Delete</button>
+          <button type="button" class="btn btn--ghost" data-close>Cancel</button>
+          <button type="submit" class="btn btn--beacon">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Generic dialog (copy day / copy week / lists / plan a recipe / reconcile preview) -->
+  <div class="modal" id="dialogModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card modal__card--wide" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="dialogTitle">Dialog</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form" id="dialogForm" autocomplete="off" novalidate>
+        <p class="form__error" id="dError" role="alert" hidden></p>
+        <div id="dialogBody"></div>
+        <div class="form__actions" id="dialogActions"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="modal" id="settingsModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card modal__card--wide" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="settingsTitle">Settings</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="settings-content">
+        <div class="settings-group">
+          <div class="settings-row__label">Atmosphere</div>
+          <div class="settings-row__desc">Pick the light over the Flatirons &mdash; or let it roll the dice each visit.</div>
+          <div class="theme-picker" id="themePicker" role="radiogroup" aria-label="Atmosphere">
+            <button type="button" class="theme-chip" data-theme-val="day" role="radio">&#9728;&#65039; Day</button>
+            <button type="button" class="theme-chip" data-theme-val="twilight" role="radio">&#127750; Twilight</button>
+            <button type="button" class="theme-chip" data-theme-val="night" role="radio">&#127769; Night</button>
+            <button type="button" class="theme-chip" data-theme-val="random" role="radio">&#127922; Random</button>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <form class="settings-group form--flush" id="planningForm" autocomplete="off">
+          <div class="settings-row__label">Meal planning</div>
+          <div class="form__row">
+            <label class="field">
+              <span class="field__label">First day of the week</span>
+              <select class="field__input" id="sWeekStart">
+                <option value="1">Monday</option>
+                <option value="0">Sunday</option>
+                <option value="6">Saturday</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Measurements for combined amounts</span>
+              <select class="field__input" id="sMeasure">
+                <option value="us">US (cups, tbsp, oz, lb)</option>
+                <option value="metric">Metric (ml, l, g, kg)</option>
+              </select>
+            </label>
+          </div>
+          <div class="form__row form__row--3">
+            <label class="field">
+              <span class="field__label">Breakfast serves</span>
+              <input class="field__input" id="sServB" type="number" min="1" max="50" step="1" />
+            </label>
+            <label class="field">
+              <span class="field__label">Lunch serves</span>
+              <input class="field__input" id="sServL" type="number" min="1" max="50" step="1" />
+            </label>
+            <label class="field">
+              <span class="field__label">Dinner serves</span>
+              <input class="field__input" id="sServD" type="number" min="1" max="50" step="1" />
+            </label>
+          </div>
+        </form>
+        <div class="settings-divider"></div>
+        <form class="settings-group form--flush" id="shoppingForm" autocomplete="off">
+          <div class="settings-row__label">Shopping</div>
+          <div class="form__row">
+            <label class="field">
+              <span class="field__label">Organize lists</span>
+              <select class="field__input" id="sGroup">
+                <option value="category">By grocery aisle</option>
+                <option value="none">One simple list</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field__label">Checked-off items</span>
+              <select class="field__input" id="sPurchased">
+                <option value="bottom">Move to &ldquo;In the cart&rdquo;</option>
+                <option value="inline">Cross out in place</option>
+                <option value="hide">Hide them</option>
+              </select>
+            </label>
+          </div>
+          <div class="form__row">
+            <label class="field">
+              <span class="field__label">Pantry</span>
+              <select class="field__input" id="sPantry">
+                <option value="flag">Set aside things I already have</option>
+                <option value="subtract">Subtract pantry amounts when known</option>
+                <option value="off">Ignore the pantry</option>
+              </select>
+            </label>
+            <label class="check-row check-row--center">
+              <input type="checkbox" id="sOptional" />
+              <span>Include optional ingredients</span>
+            </label>
+          </div>
+          <div class="field">
+            <span class="field__label">Aisle order <em>(matches your store walk)</em></span>
+            <ol class="aisle-order" id="sAisles"></ol>
+          </div>
+        </form>
+        <div class="settings-divider"></div>
+        <div class="settings-group">
+          <div class="settings-row__label">Encrypted Cloud Backup</div>
+          <div class="settings-row__desc">Velum encrypts everything in this browser (AES-GCM-256, key from your phrase via PBKDF2 &times; 600,000) before it leaves &mdash; the server only ever stores ciphertext and can&rsquo;t recover lost words. Uses the same recovery phrase as your other cloud apps.</div>
+          <dl class="backup-status" id="backupStatus"></dl>
+          <!-- Own <form> so password managers don't pair this field with other inputs as a "username". -->
+          <form class="cloud-data-field" id="cloudPhraseForm" autocomplete="off">
+            <span class="cloud-data-field__label">Recovery phrase</span>
+            <span class="cloud-phrase-entry">
+              <input class="cloud-data-field__input" id="cloudPhrase" type="password" autocomplete="off" spellcheck="false" placeholder="sixteen recovery words" aria-label="Recovery phrase" />
+              <button type="button" class="cloud-phrase-entry__toggle" id="togglePhraseBtn" aria-pressed="false">Show</button>
+            </span>
+          </form>
+          <p class="cloud-phrase-output" id="cloudPhraseOut" hidden></p>
+          <label class="cloud-remember-option">
+            <input type="checkbox" id="rememberPhrase" />
+            <span>Remember on this device</span>
+          </label>
+          <label class="cloud-remember-option">
+            <input type="checkbox" id="autoBackup" />
+            <span>Back up automatically after changes <em class="muted">(needs a remembered phrase)</em></span>
+          </label>
+          <label class="cloud-remember-option">
+            <input type="checkbox" id="cloudPhotos" />
+            <span>Include recipe photos in cloud backups</span>
+          </label>
+          <div class="settings-actions settings-actions--compact">
+            <button type="button" class="btn btn--ghost" id="generatePhraseBtn">Create phrase</button>
+            <button type="button" class="btn btn--ghost" id="cloudSaveBtn">Back up now</button>
+            <button type="button" class="btn btn--ghost" id="cloudLoadBtn">Restore from cloud</button>
+          </div>
+          <p class="cloud-data-status" id="cloudStatus" aria-live="polite"></p>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-group">
+          <div class="settings-row__label">Data</div>
+          <p class="settings-privacy">Everything stays in your browser (recipes in localStorage, photos in IndexedDB). File backups include photos and an integrity checksum.</p>
+          <div class="settings-actions">
+            <button type="button" class="btn btn--ghost" id="exportBtn">Export backup file</button>
+            <button type="button" class="btn btn--ghost" id="importBtn">Restore from file</button>
+            <input type="file" id="importFile" accept="application/json,.json" hidden />
+            <button type="button" class="btn btn--ghost" id="undoRestoreBtn" hidden>Undo last restore</button>
+          </div>
+          <div class="settings-actions">
+            <button type="button" class="btn btn--ghost" id="starterBtn">Add starter recipes</button>
+            <button type="button" class="btn btn--ghost" id="aboutBtn">About Velum</button>
+            <button type="button" class="btn btn--danger" id="clearBtn">Clear all data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About -->
+  <div class="modal" id="aboutModal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <div class="modal__header">
+        <h2 class="modal__title" id="aboutTitle">About Velum</h2>
+        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="about-content">
+        <p class="about-content__name">Velum</p>
+        <p class="about-content__version" id="aboutVersion">Version 2026.10.31.1</p>
+        <p class="about-content__description">Your personal kitchen companion: keep a recipe library, plan breakfast, lunch and dinner for the week, and let Velum do the tedious part &mdash; adding up exactly what to buy. Named after velum, the smooth veil of cloud that drapes over a rising one, like the stacked lenticular saucers that park over the Flatirons on a windy winter day.</p>
+        <dl class="about-build" id="aboutBuild"></dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" class="toast__action" id="toastAction" hidden></button></div>
+
+  <script src="js/util.js?v=2026.10.31.1"></script>
+  <script src="js/units.js?v=2026.10.31.1"></script>
+  <script src="js/model.js?v=2026.10.31.1"></script>
+  <script src="js/planner.js?v=2026.10.31.1"></script>
+  <script src="js/store.js?v=2026.10.31.1"></script>
+  <script src="js/sync.js?v=2026.10.31.1"></script>
+  <script src="js/images.js?v=2026.10.31.1"></script>
+  <script src="js/demo.js?v=2026.10.31.1"></script>
+  <script src="js/views.js?v=2026.10.31.1"></script>
+  <script src="js/shell.js?v=2026.10.31.1"></script>
+  <script src="js/editors.js?v=2026.10.31.1"></script>
+  <script src="js/backup.js?v=2026.10.31.1"></script>
+  <script src="js/app.js?v=2026.10.31.1"></script>
+</body>
+</html>

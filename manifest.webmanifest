@@ -1,0 +1,16 @@
+{
+  "name": "Velum",
+  "short_name": "Velum",
+  "description": "A local-first meal planner: a personal recipe library, a weekly breakfast/lunch/dinner menu and a shopping list that builds itself.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#163e7a",
+  "theme_color": "#163e7a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
