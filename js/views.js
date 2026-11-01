@@ -448,11 +448,12 @@
     const linkedMenu = S.menuForList(list);
     const outdated = linkedMenu && S.isListOutdated(list.id);
     const settings = db.settings;
+    const purchased = ui.phoneChecklist ? "inline" : settings.purchased;
     const order = settings.categoryOrder;
     const sortItems = (arr) => arr.slice().sort((a, b) => a.sortOrder - b.sortOrder);
     const open = items.filter((i) => !i.purchased);
-    const shownBought = settings.purchased === "inline" ? [] : bought;
-    const inlineSet = settings.purchased === "inline" ? items : open;
+    const shownBought = purchased === "inline" ? [] : bought;
+    const inlineSet = purchased === "inline" ? items : open;
 
     let rows = "";
     if (settings.groupBy === "category") {
@@ -467,7 +468,7 @@
     let body = rows ? `<ul class="shop-items" aria-label="Shopping checklist">${rows}</ul>` : "";
     if (!body && items.length) body = `<div class="insight insight--good"><span class="insight__body"><strong>All done!</strong> Everything on the list is in the cart.</span></div>`;
     if (!items.length) body = `<p class="empty-note">This list is empty. Add items above${linkedMenu ? " or add meals to the plan" : ""}.</p>`;
-    if (shownBought.length && settings.purchased === "bottom") {
+    if (shownBought.length && purchased === "bottom") {
       body += `<section class="aisle"><h3 class="aisle__title">In the cart <span class="aisle__count">${shownBought.length}</span></h3><ul class="shop-items">${shownBought.map((i) => itemRow(i, ui)).join("")}</ul></section>`;
     }
     if (pantrySet.length) {

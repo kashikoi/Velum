@@ -10,7 +10,7 @@
 - **Stack:** Plain vanilla HTML5, CSS3, ES2015+ JavaScript. No framework, no bundler, no build step. Classic `<script>` files share one `window.Velum` namespace (same split-module pattern as the Arcus refactor) so the engine runs unchanged in Node for tests.
 - **Local-first:** Data persists in `localStorage`; recipe photos live in IndexedDB (the shared `kashikoi.github.io` origin's ~5 MB localStorage quota is used by every suite app). JSON backup files plus optional zero-knowledge encrypted cloud backup.
 - **Deploy:** Static site — open `index.html` directly or serve it (GitHub Pages: `https://kashikoi.github.io/Velum/` once the repo is published).
-- **Phone layout:** iPhone and Android phone browsers open directly to a shopping-only screen with large checkboxes, wrapping item names, and no meal-planning navigation, in portrait or landscape. Desktop/tablet browsers keep the full app. **Backup & restore** remains available to load a shopping list from the planning device; data and checks are local to each browser, not live-synced.
+- **Phone layout:** iPhone and Android phone browsers open directly to a shopping-only screen with large checkboxes, wrapping item names, and no meal-planning navigation, in portrait or landscape. Checked items stay in their original position with strikethrough; tap again to uncheck. Desktop/tablet browsers keep the full app and their purchased-item display preference. **Backup & restore** remains available to load a shopping list from the planning device; data and checks are local to each browser, not live-synced.
 
 ## Modules
 - **Overview (home)** — eight-day strip, planned recipes with photos, shopping progress, quick actions.

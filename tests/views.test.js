@@ -114,6 +114,34 @@ test("phone checklist keeps backup loading and item editing but removes meal-pla
   assert.match(W.shopping(S.getDb(), {}, list), /href="#\/menu"/, "desktop keeps the full app navigation");
 });
 
+test("phone checks toggle strikethrough in place regardless of desktop purchase preference", () => {
+  for (const groupBy of ["category", "none"]) {
+    for (const purchased of ["bottom", "hide", "inline"]) {
+      S.init();
+      const list = S.createList("Groceries");
+      const apples = S.addItem(list.id, { name: "Apples", category: "produce" });
+      S.addItem(list.id, { name: "Carrots", category: "produce" });
+      S.addItem(list.id, { name: "Rice", category: "pantry" });
+      S.updateSettings({ groupBy, purchased });
+      const render = () => W.shopping(S.getDb(), { phoneChecklist: true }, list);
+      const names = (html) => [...html.matchAll(/class="shop-item__name">([^<]+) /g)].map((m) => m[1]);
+      const before = names(render());
+      S.togglePurchased(apples.id);
+      let html = render();
+      assert.deepEqual(names(html), before);
+      assert.match(html, /class="shop-item is-bought"/);
+      assert.match(html, /aria-pressed="true" aria-label="Unmark Apples as bought"/);
+      assert.doesNotMatch(html, /In the cart <span|All done!/);
+      assert.equal(S.getDb().settings.purchased, purchased);
+      S.togglePurchased(apples.id);
+      html = render();
+      assert.deepEqual(names(html), before);
+      assert.doesNotMatch(html, /class="shop-item is-bought"/);
+      assert.match(html, /aria-pressed="false" aria-label="Mark Apples as bought"/);
+    }
+  }
+});
+
 test("checklist keeps pantry items separate and cleared items hidden", () => {
   S.init();
   S.replaceDb(M.normalizeDb({
