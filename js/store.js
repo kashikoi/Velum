@@ -559,6 +559,86 @@
     commit();
   }
 
+  // ---------- Occasional items (saved things to check now and then) ----------
+  function occasionalItems() { return db.occasional.slice().sort((a, b) => a.sortOrder - b.sortOrder); }
+  const sameName = (a, b) => Un.normalizeName(a) === Un.normalizeName(b);
+  // Household packaging words the recipe parser leaves in the name ("2 packs paper towels").
+  const PACKAGING = /^(pack|roll|tube|bar|carton|container|stick|refill|pair)s?\s+(.+)$/i;
+  function addOccasional(text) {
+    const p = Un.parseIngredientLine(text);
+    if (p && p.qty != null && !p.unit) {
+      const m = PACKAGING.exec(p.name);
+      if (m) { p.unit = m[1].toLowerCase() + (p.qty === 1 ? "" : "s"); p.name = m[2]; }
+    }
+    const name = p && U.str(p.name, 160);
+    if (!name) fail("Type an item name.");
+    const display = name.charAt(0).toUpperCase() + name.slice(1);
+    if (db.occasional.some((o) => sameName(o.name, display))) fail(display + " is already on your occasional list.");
+    const o = M.normalizeOccasional({
+      name: display, qty: p.qty, unit: p.unit, note: p.prep,
+      category: Un.guessCategory(name, Un.normalizeUnit(p.unit)), sortOrder: nextSort(db.occasional),
+    });
+    db.occasional.push(o);
+    commit();
+    return o;
+  }
+  function updateOccasional(id, f) {
+    const o = find("occasional", id, "occasional item");
+    if (f.name !== undefined) {
+      const name = U.str(f.name, 160);
+      if (!name) fail("Type an item name.");
+      if (db.occasional.some((x) => x !== o && sameName(x.name, name))) fail(name + " is already on your occasional list.");
+      o.name = name;
+    }
+    if (f.qtyText !== undefined) {
+      const qty = U.str(f.qtyText) ? Un.parseQuantity(f.qtyText) : null;
+      if (U.str(f.qtyText) && (qty == null || qty <= 0)) fail("Couldn't read that quantity. Try 1, 2 or 1/2.");
+      o.qty = qty;
+    }
+    if (f.unit !== undefined) o.unit = Un.normalizeUnit(f.unit);
+    if (f.category !== undefined) o.category = M.GROCERY_CATEGORIES.indexOf(f.category) >= 0 ? f.category : "other";
+    if (f.note !== undefined) o.note = U.str(f.note, 300);
+    commit();
+    return o;
+  }
+  function deleteOccasional(id) {
+    const o = find("occasional", id, "occasional item");
+    db.occasional = db.occasional.filter((x) => x !== o);
+    commit();
+    return o;
+  }
+  function restoreOccasional(o) {
+    if (!db.occasional.some((x) => x.id === o.id)) db.occasional.push(M.normalizeOccasional(o));
+    commit();
+  }
+  function moveOccasional(id, delta) {
+    const list = occasionalItems();
+    const i = list.findIndex((x) => x.id === id), j = i + delta;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    const tmp = list[i].sortOrder;
+    list[i].sortOrder = list[j].sortOrder;
+    list[j].sortOrder = tmp;
+    if (list[i].sortOrder === list[j].sortOrder) list[i].sortOrder += delta;
+    commit();
+  }
+  // The visible (not cleared) shopping item matching an occasional item by name, if any.
+  function occasionalOnList(listId, o) {
+    if (!listId) return null;
+    return db.items.find((it) => it.listId === listId && !it.cleared && sameName(it.name, o.name)) || null;
+  }
+  // Adds an occasional item to a list (creating one if needed). A checked-off match is unchecked instead of duplicated.
+  function needOccasional(id, listId) {
+    const o = find("occasional", id, "occasional item");
+    const list = listId ? find("lists", listId, "shopping list") : createList("Shopping list");
+    const existing = occasionalOnList(list.id, o);
+    if (existing) {
+      if (existing.purchased) { existing.purchased = false; touchList(list.id); commit(); return { list, item: existing, added: true }; }
+      return { list, item: existing, added: false };
+    }
+    const item = addItem(list.id, { name: o.name, qty: o.qty, unit: o.unit, category: o.category, note: o.note });
+    return { list, item, added: true };
+  }
+
   // ---------- Bulk ----------
   function clearAll() {
     const images = db.recipes.map((r) => r.imageId).filter(Boolean);
@@ -585,6 +665,7 @@
     addItem, quickAddItem, updateItem, resetItemToMenu, togglePurchased, setPantryOverride, deleteItem, restoreItem, clearCompleted, moveItem,
     createIngredient, updateIngredient, deleteIngredient, learnFromRecipes,
     addPantry, quickAddPantry, updatePantry, deletePantry,
+    occasionalItems, addOccasional, updateOccasional, deleteOccasional, restoreOccasional, moveOccasional, occasionalOnList, needOccasional,
     clearAll,
   };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);

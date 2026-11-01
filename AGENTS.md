@@ -24,7 +24,7 @@ this up in a new session, read this first.
 - Rendering: `views.js` pure string templates with `escapeHtml()` on every user string. Clicks are
   delegated on `#canvas` via `data-act`, changes via `data-change`, input via `data-input`, forms via
   `data-form`. Hash routes: `#/`, `#/menu`, `#/day/<day-key>`, `#/recipes`, `#/recipe/<id>?meal=&cook=1`,
-  `#/shopping/<listId>`, `#/pantry`. `shell.render()` restores focus/caret for inputs with an `id`.
+  `#/shopping/<listId>`, `#/occasional`, `#/pantry`. `shell.render()` restores focus/caret for inputs with an `id`.
 - Schema v2: meals use **day key + meal type**, with `model.PLAN_DAYS` in fixed order from `saturday`
   through `following-saturday` (eight independent days, 24 slots). One reusable menu, no calendar dates,
   week history, or automatic rollover. Lists link by `menuId`; shopping includes both Saturdays.

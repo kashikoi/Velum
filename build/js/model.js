@@ -49,7 +49,7 @@
     return {
       schemaVersion: SCHEMA_VERSION,
       settings: defaultSettings(),
-      recipes: [], menus: [], meals: [], lists: [], items: [], ingredients: [], pantry: [],
+      recipes: [], menus: [], meals: [], lists: [], items: [], ingredients: [], pantry: [], occasional: [],
       meta: { modifiedAt: null },
     };
   }
@@ -235,6 +235,18 @@
       updatedAt: ts(o.updatedAt) || new Date().toISOString(),
     };
   }
+  function normalizeOccasional(x, i) {
+    const o = obj(x);
+    return {
+      id: id(o.id),
+      name: U.str(o.name, 160) || "Item",
+      qty: (() => { const n = nonNeg(o.qty); return n ? n : null; })(),
+      unit: Un.normalizeUnit(o.unit),
+      category: oneOf(o.category, GROCERY_CATEGORIES, "other"),
+      note: U.str(o.note, 300),
+      sortOrder: Number.isFinite(+o.sortOrder) ? +o.sortOrder : i || 0,
+    };
+  }
 
   // Legacy dated menus become one reusable plan; all meal assignments and shopping items are retained.
   function normalizeDb(raw) {
@@ -249,10 +261,11 @@
       items: arr(o.items).map(normalizeItem),
       ingredients: arr(o.ingredients).map(normalizeIngredient),
       pantry: arr(o.pantry).map(normalizePantry),
+      occasional: arr(o.occasional).map(normalizeOccasional),
       meta: { modifiedAt: ts(obj(o.meta).modifiedAt) },
     };
     const dedupe = (list) => { const seen = new Set(); return list.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true))); };
-    ["recipes", "menus", "meals", "lists", "items", "ingredients", "pantry"].forEach((k) => { db[k] = dedupe(db[k]); });
+    ["recipes", "menus", "meals", "lists", "items", "ingredients", "pantry", "occasional"].forEach((k) => { db[k] = dedupe(db[k]); });
     if (!db.menus.length && db.meals.length) db.menus.push(normalizeMenu({}));
     const menu = db.menus[0];
     const previousMenuIds = new Set(db.menus.map((m) => m.id));
@@ -285,6 +298,6 @@
     SCHEMA_VERSION, PLAN_DAYS, DAY_LABEL, isPlanDay, legacyDay, MEAL_TYPES, MEAL_LABEL, MEAL_ICON, RECIPE_CATEGORIES, CATEGORY_LABEL, CATEGORY_ICON,
     DIFFICULTIES, DIFFICULTY_LABEL, GROCERY_CATEGORIES, GROCERY_LABEL, GROCERY_ICON,
     defaultSettings, emptyDb, normalizeSettings, normalizeRecipe, normalizeRecipeIngredient, normalizeMenu, normalizeMeal,
-    normalizeList, normalizeItem, normalizeIngredient, normalizePantry, normalizeDb, totalTime,
+    normalizeList, normalizeItem, normalizeIngredient, normalizePantry, normalizeOccasional, normalizeDb, totalTime,
   };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);

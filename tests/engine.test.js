@@ -405,7 +405,7 @@ test("acceptance: backup slice round-trips with integrity verification and keeps
   assert.equal(restored.images.img1, images.img1);
   assert.equal(restored.db.items[0].purchased, true);
   assert.equal(restored.db.settings.measurement, "metric");
-  assert.deepEqual(restored.meta.counts, { recipes: 1, archived: 0, menus: 1, meals: 1, lists: 1, items: 1, ingredients: 0, pantry: 0, photos: 1 });
+  assert.deepEqual(restored.meta.counts, { recipes: 1, archived: 0, menus: 1, meals: 1, lists: 1, items: 1, ingredients: 0, pantry: 0, occasional: 0, photos: 1 });
   assert.deepEqual(JSON.parse(JSON.stringify(restored.db)), JSON.parse(JSON.stringify(S.getDb())));
 
   const tampered = JSON.parse(JSON.stringify(unified));

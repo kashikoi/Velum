@@ -1569,6 +1569,21 @@ html.day .changes__group--up h4 { color: var(--beacon); }
 .switch input:checked + span::after { left: 21px; background: var(--good); }
 .switch input:focus-visible + span { outline: 2px solid var(--beacon-bright); outline-offset: 2px; }
 .staples { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Occasional items */
+.occ-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.occ-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; gap: 10px; align-items: center;
+  padding: 10px 12px; border-radius: var(--radius-sm); background: var(--glass-hi); border: 1px solid var(--glass-border);
+}
+.occ-row.is-on { border-color: var(--good-border); background: var(--good-wash); }
+.occ-row__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.occ-row__name { font-weight: 700; font-size: 1rem; overflow-wrap: anywhere; }
+.occ-row__sub { font-size: 0.8rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.occ-row__state { min-width: 96px; justify-content: center; }
+.occ-row__state.is-on { color: var(--good); border-color: var(--good-border); }
+.occ-row__move { display: flex; gap: 4px; }
+.occ-row__move .mini-btn { width: 28px; height: 28px; font-size: 0.7rem; }
+.occ-row__move .mini-btn:disabled { opacity: 0.35; cursor: default; }
 .table-wrap { overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .tbl th { text-align: left; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); padding: 8px 10px; border-bottom: 1px solid var(--glass-border); white-space: nowrap; }
@@ -1625,7 +1640,7 @@ html.day .changes__group--up h4 { color: var(--beacon); }
   #topNewRecipeBtn { display: none; }
   .tabbar {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     position: fixed;
     left: 0; right: 0; bottom: 0;
     z-index: 100;
@@ -1667,6 +1682,9 @@ html.day .changes__group--up h4 { color: var(--beacon); }
   .modal__card--tall { height: 94dvh; }
   .pantry-row { grid-template-columns: auto 1fr auto; }
   .pantry-row__qty, .pantry-row__unit { display: none; }
+  .occ-row { grid-template-columns: auto auto 1fr auto; }
+  .occ-row__main { grid-column: 1 / -1; }
+  .occ-row__move { justify-self: end; }
   .hide-sm { display: none !important; }
   .page-head__title, .menu-name { font-size: 1.35rem; }
   .recipe-hero__title { font-size: 1.6rem; }

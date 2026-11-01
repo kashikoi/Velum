@@ -52,7 +52,7 @@
     return {
       recipes: db.recipes.filter((r) => !r.archived).length, archived: db.recipes.filter((r) => r.archived).length,
       menus: db.menus.length, meals: db.meals.length, lists: db.lists.length, items: db.items.length,
-      ingredients: db.ingredients.length, pantry: db.pantry.length, photos: Object.keys(images || {}).length,
+      ingredients: db.ingredients.length, pantry: db.pantry.length, occasional: (db.occasional || []).length, photos: Object.keys(images || {}).length,
     };
   }
 

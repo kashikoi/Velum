@@ -7,7 +7,7 @@
   const W = V.views;
   const esc = U.escapeHtml;
 
-  const APP_VERSION = "2026.11.01.6";
+  const APP_VERSION = "2026.11.01.7";
   const THEME_KEY = "velum_cloud_theme";
   const ACTIVE_THEME_KEY = "velum_cloud_active_theme";
   const THEMES = ["day", "twilight", "night"];
@@ -155,17 +155,17 @@
   }
 
   // ---------- Routing ----------
-  // #/  #/menu  #/day/<day-key>  #/recipes  #/recipe/<id>[?meal=&cook=1]  #/shopping[/<listId>]  #/pantry
+  // #/  #/menu  #/day/<day-key>  #/recipes  #/recipe/<id>[?meal=&cook=1]  #/shopping[/<listId>]  #/occasional  #/pantry
   function parseRoute() {
     const raw = location.hash.replace(/^#\/?/, "");
     const [path, qs] = raw.split("?");
     const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
     const query = {};
     (qs || "").split("&").filter(Boolean).forEach((kv) => { const [k, v] = kv.split("="); query[decodeURIComponent(k)] = decodeURIComponent(v || ""); });
-    const name = ["menu", "day", "recipes", "recipe", "shopping", "pantry"].indexOf(parts[0]) >= 0 ? parts[0] : "home";
+    const name = ["menu", "day", "recipes", "recipe", "shopping", "occasional", "pantry"].indexOf(parts[0]) >= 0 ? parts[0] : "home";
     if (ui.phoneChecklist) return { name: "shopping", arg: name === "shopping" ? parts[1] || null : null, query: {} };
     let arg = parts[1] || null;
-    if (name === "menu") arg = null;
+    if (name === "menu" || name === "occasional") arg = null;
     if (name === "day" && !V.model.isPlanDay(arg)) arg = U.isISODate(arg) ? V.model.legacyDay(arg) : "saturday";
     return { name, arg, query };
   }
@@ -178,6 +178,7 @@
     { id: "menu", icon: "🗓️", label: "Menu plan", short: "Menu", href: "#/menu" },
     { id: "recipes", icon: "📖", label: "Recipes", short: "Recipes", href: "#/recipes" },
     { id: "shopping", icon: "🛒", label: "Shopping", short: "Shop", href: "#/shopping" },
+    { id: "occasional", icon: "🧴", label: "Occasional items", short: "Occasional", href: "#/occasional" },
     { id: "pantry", icon: "🧺", label: "Ingredients & pantry", short: "Pantry", href: "#/pantry" },
   ];
   function navSection(name) { return name === "day" ? "menu" : name === "recipe" ? "recipes" : name; }
@@ -257,6 +258,7 @@
         if (list) ui.listId = list.id;
         return W.shopping(db, ui, list);
       }
+      case "occasional": return W.occasional(db, ui, currentList(db));
       case "pantry": return W.pantry(db, ui);
       default: return W.home(db, ui);
     }
@@ -268,7 +270,7 @@
     const keep = active && active.id && el.canvas.contains(active) ? { id: active.id, start: active.selectionStart, end: active.selectionEnd } : null;
     renderRail(db);
     renderCrumb(db);
-    el.canvas.innerHTML = `<div class="canvas__inner${ui.route.name === "shopping" || ui.route.name === "pantry" ? " canvas__inner--narrow" : ""}">${canvasHtml(db)}</div>`;
+    el.canvas.innerHTML = `<div class="canvas__inner${["shopping", "occasional", "pantry"].indexOf(ui.route.name) >= 0 ? " canvas__inner--narrow" : ""}">${canvasHtml(db)}</div>`;
     if (keep) {
       const again = $(keep.id);
       if (again) {

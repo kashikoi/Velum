@@ -158,3 +158,71 @@ test("checklist keeps pantry items separate and cleared items hidden", () => {
   assert.match(html, /data-act="pantry-override"/);
   assert.doesNotMatch(html, /Removed item/);
 });
+
+test("occasional items are saved, added to the current list without duplicates, and survive clearing the list", () => {
+  S.init();
+  assert.deepEqual(M.normalizeDb({}).occasional, [], "older data gains an empty occasional list");
+  const shampoo = S.addOccasional("2 bottles shampoo");
+  assert.equal(shampoo.name, "Shampoo");
+  assert.equal(shampoo.qty, 2);
+  assert.equal(shampoo.unit, "bottle");
+  assert.throws(() => S.addOccasional("shampoo"), /already on your occasional list/);
+  const towels = S.addOccasional("Paper towels");
+  assert.equal(towels.category, "household");
+  const foil = S.addOccasional("2 packs aluminum foil");
+  assert.equal(foil.name, "Aluminum foil");
+  assert.equal(foil.qty, 2);
+  assert.equal(foil.unit, "packs");
+  assert.equal(S.addOccasional("1 tube toothpaste").unit, "tube");
+  S.deleteOccasional(S.getDb().occasional.find((o) => o.name === "Toothpaste").id);
+  S.deleteOccasional(foil.id);
+  S.moveOccasional(towels.id, -1);
+  assert.deepEqual(S.occasionalItems().map((o) => o.name), ["Paper towels", "Shampoo"]);
+
+  const first = S.needOccasional(shampoo.id, null);
+  assert.equal(first.added, true);
+  assert.equal(first.list.name, "Shopping list", "a list is created when none exists");
+  assert.equal(first.item.qty, 2);
+  assert.equal(first.item.manual, true);
+  const again = S.needOccasional(shampoo.id, first.list.id);
+  assert.equal(again.added, false);
+  assert.equal(S.listItems(first.list.id).length, 1, "needing it twice does not duplicate");
+
+  S.togglePurchased(first.item.id);
+  const rebuy = S.needOccasional(shampoo.id, first.list.id);
+  assert.equal(rebuy.added, true);
+  assert.equal(rebuy.item.purchased, false, "a bought match is unchecked rather than duplicated");
+  assert.equal(S.listItems(first.list.id).length, 1);
+
+  S.togglePurchased(first.item.id);
+  S.clearCompleted(first.list.id);
+  assert.equal(S.listItems(first.list.id).length, 0);
+  assert.equal(S.getDb().occasional.length, 2, "occasional items stay saved after shopping");
+
+  const removed = S.deleteOccasional(towels.id);
+  S.restoreOccasional(removed);
+  assert.equal(S.getDb().occasional.length, 2);
+  const roundTrip = M.normalizeDb(JSON.parse(JSON.stringify(S.getDb())));
+  assert.deepEqual(roundTrip.occasional.map((o) => o.name).sort(), ["Paper towels", "Shampoo"]);
+  S.clearAll();
+  assert.equal(S.getDb().occasional.length, 0, "Clear all data includes occasional items");
+});
+
+test("occasional page shows list status and phone shopping hides the occasional link", () => {
+  S.init();
+  const list = S.createList("Costco run");
+  const soap = S.addOccasional("Dish soap");
+  S.addOccasional("<Batteries> & bulbs");
+  let html = W.occasional(S.getDb(), {}, list);
+  assert.match(html, /Costco run/);
+  assert.match(html, /&lt;Batteries&gt; &amp; bulbs/);
+  assert.equal((html.match(/data-act="occ-need"/g) || []).length, 2);
+  S.needOccasional(soap.id, list.id);
+  html = W.occasional(S.getDb(), {}, list);
+  assert.equal((html.match(/data-act="occ-need"/g) || []).length, 1);
+  assert.match(html, /data-act="occ-unneed"[^>]*>✓ On list/);
+  assert.match(html, /1 item already on it/);
+  assert.match(W.occasional(S.getDb(), {}, null), /start a shopping list for you/);
+  assert.match(W.shopping(S.getDb(), {}, list), /href="#\/occasional"/);
+  assert.doesNotMatch(W.shopping(S.getDb(), { phoneChecklist: true }, list), /occasional/i);
+});

@@ -439,7 +439,7 @@
       return `${pageHead("Shopping", "Lists build themselves from your menu plan.", `<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button>`)}
         <div class="empty"><div class="empty__icon">🛒</div><h2 class="empty__title">No shopping list yet</h2>
         <p class="empty__text">${db.meals.length ? "Your menu plan is ready — build a list and Velum will combine every ingredient." : "Plan some meals first, then build a list in one tap. You can also start a blank list for a quick run."}</p>
-        <div class="empty__actions">${newPlanBtn || `<a class="btn btn--beacon" href="#/menu">Plan meals</a>`}<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button></div></div>`;
+        <div class="empty__actions">${newPlanBtn || `<a class="btn btn--beacon" href="#/menu">Plan meals</a>`}<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button><a class="btn btn--ghost" href="#/occasional">🧴 Occasional items</a></div></div>`;
     }
     const all = S.listItems(list.id).filter((i) => !i.cleared);
     const pantrySet = all.filter((i) => i.inPantry && !i.pantryOverride);
@@ -504,6 +504,7 @@
           <button type="button" class="btn btn--ghost btn--tiny" data-act="clear-done" data-id="${esc(list.id)}"${bought.length ? "" : " disabled"}>Clear ${bought.length || ""} checked</button>
           <button type="button" class="btn btn--ghost btn--tiny" data-act="arrange" aria-pressed="${ui.arrange}">${ui.arrange ? "Done arranging" : "↕ Arrange"}</button>
           <button type="button" class="btn btn--ghost btn--tiny" data-act="group-toggle">${settings.groupBy === "category" ? "Use custom order" : "Use aisle order"}</button>
+          ${ui.phoneChecklist ? "" : `<a class="btn btn--ghost btn--tiny" href="#/occasional">🧴 Check occasional items${db.occasional.length ? " (" + db.occasional.length + ")" : ""}</a>`}
         </div>
         <button type="button" class="btn btn--ghost btn--tiny" data-act="list-status" data-id="${esc(list.id)}">${list.status === "done" ? "Reopen list" : "✓ Finished shopping"}</button>
       </div>`;
@@ -550,6 +551,42 @@
         : `<p class="empty-note">No catalog entries yet. Velum still guesses aisles on its own; add entries when you want to correct or merge something.</p>`}`;
   }
 
+  // ---------- Occasional items ----------
+  function occasional(db, ui, list) {
+    const items = S.occasionalItems();
+    let onListCount = 0;
+    const rows = items.map((o, i) => {
+      const it = list && S.occasionalOnList(list.id, o);
+      const need = it && !it.purchased;
+      if (need) onListCount++;
+      const amount = o.qty == null ? "" : Un.formatAmount(o.qty, o.unit);
+      const sub = [amount, o.note, M.GROCERY_ICON[o.category] + " " + M.GROCERY_LABEL[o.category]].filter(Boolean).map(esc).join(" · ");
+      const state = need
+        ? (it.manual
+          ? `<button type="button" class="btn btn--ghost btn--tiny occ-row__state is-on" data-act="occ-unneed" data-id="${esc(it.id)}" aria-pressed="true" aria-label="Remove ${esc(o.name)} from the shopping list">✓ On list</button>`
+          : `<span class="occ-row__state">${pill("✓ On list (from menu)", "good")}</span>`)
+        : `<button type="button" class="btn btn--beacon btn--tiny occ-row__state" data-act="occ-need" data-id="${esc(o.id)}" aria-pressed="false" aria-label="Add ${esc(o.name)} to the shopping list">${it ? "Need again" : "Need it"}</button>`;
+      return `<li class="occ-row${need ? " is-on" : ""}">
+        <span class="occ-row__main"><span class="occ-row__name">${esc(o.name)}</span><span class="occ-row__sub">${sub}</span></span>
+        ${state}
+        <button type="button" class="btn btn--ghost btn--tiny" data-act="occ-edit" data-id="${esc(o.id)}" aria-label="Edit ${esc(o.name)}">Edit</button>
+        <span class="occ-row__move"><button type="button" class="mini-btn" data-act="occ-move" data-id="${esc(o.id)}" data-delta="-1" aria-label="Move ${esc(o.name)} up"${i === 0 ? " disabled" : ""}>▲</button><button type="button" class="mini-btn" data-act="occ-move" data-id="${esc(o.id)}" data-delta="1" aria-label="Move ${esc(o.name)} down"${i === items.length - 1 ? " disabled" : ""}>▼</button></span>
+        <button type="button" class="mini-btn mini-btn--danger" data-act="occ-del" data-id="${esc(o.id)}" aria-label="Delete ${esc(o.name)} from occasional items">✕</button>
+      </li>`;
+    }).join("");
+    const target = list
+      ? `Tap <strong>Need it</strong> to add an item to <a href="#/shopping/${esc(list.id)}"><strong>${esc(list.name)}</strong></a>${onListCount ? ` · ${U.plural(onListCount, "item")} already on it` : ""}.`
+      : `Tap <strong>Need it</strong> and Velum will start a shopping list for you.`;
+    return `${pageHead("Occasional items", "Things you buy now and then. Check if you're running low, then add what you need.", "")}
+      <div class="insight"><span class="insight__body">${target}</span></div>
+      <form class="quick-add" data-form="occ-add" autocomplete="off">
+        <input class="field__input" id="occAdd" placeholder="Add an item… e.g. shampoo, 2 packs paper towels" aria-label="Add an occasional item" maxlength="200" />
+        <button type="submit" class="btn btn--beacon">Add</button>
+      </form>
+      ${rows ? `<ul class="occ-list" aria-label="Occasional items">${rows}</ul>`
+        : `<p class="empty-note">Nothing saved yet. Add things like shampoo, toothpaste, laundry detergent or batteries. They stay here for next time.</p>`}`;
+  }
+
   // ---------- Dialog bodies ----------
   function changesHtml(ch) {
     const li = (arr, fn) => arr.map((x) => `<li>${fn(x)}</li>`).join("");
@@ -580,10 +617,10 @@
       </dl>
       <div class="restore-counts">
         ${stat("Recipes", c.recipes + (c.archived ? " (+" + c.archived + " archived)" : ""))}${stat("Photos", c.photos)}${stat("Menus", c.menus)}${stat("Meals", c.meals)}
-        ${stat("Lists", c.lists)}${stat("List items", c.items)}${stat("Catalog", c.ingredients)}${stat("Pantry", c.pantry)}
+        ${stat("Lists", c.lists)}${stat("List items", c.items)}${stat("Catalog", c.ingredients)}${stat("Pantry", c.pantry)}${c.occasional != null ? stat("Occasional", c.occasional) : ""}
       </div>
       <p class="field__hint" style="margin-top:10px">On this device now: ${U.plural(lc.recipes, "recipe")}, ${U.plural(lc.meals, "meal")}, ${U.plural(lc.items, "list item")}.${lc.newer ? " <strong>This device has changes newer than the backup.</strong>" : ""}</p>`;
   }
 
-  V.views = { home, menuPlan, menuDay, library, recipeDetail, shopping, pantry, changesHtml, restorePreviewHtml, thumb, imgTag, placeholder, recipeIcon, filterRecipes, mealName, dayOptions };
+  V.views = { home, menuPlan, menuDay, library, recipeDetail, shopping, pantry, occasional, changesHtml, restorePreviewHtml, thumb, imgTag, placeholder, recipeIcon, filterRecipes, mealName, dayOptions };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);
