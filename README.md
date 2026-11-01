@@ -4,6 +4,7 @@
 - **Name:** Velum (after *velum* — the smooth veil of cloud that drapes over a rising one, like the stacked lenticular saucers that park over the Flatirons on a windy winter day).
 - **Purpose:** A personal kitchen companion. Keep a recipe library, plan breakfast, lunch and dinner for the week, and let Velum add up exactly what to buy — combined, converted, sorted by aisle — then check things off in the store.
 - **Sister apps:** Shares the sky/cloud design language, settings, and encrypted cloud sync of Cumulus, Nimbus, Cirrus, Stratus, Anvil, Arcus and Virga (frosted glass, Day / Twilight / Night / Random atmosphere, no-build vanilla HTML/CSS/JS).
+- **Scenic panes:** Mostly translucent navigation and content panes with light frosting keep the clouds and Flatirons visible in every atmosphere. Cards use light glass washes; dialogs retain stronger glass for readability.
 
 ## Technology & Design Philosophy
 - **Stack:** Plain vanilla HTML5, CSS3, ES2015+ JavaScript. No framework, no bundler, no build step. Classic `<script>` files share one `window.Velum` namespace (same split-module pattern as the Arcus refactor) so the engine runs unchanged in Node for tests.

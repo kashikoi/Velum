@@ -22,7 +22,7 @@
   --good: #34d399;
   --warn: #fb923c;
 
-  --glass: rgba(8, 16, 34, 0.55);
+  --glass: rgba(8, 16, 34, 0.36);
   --glass-strong: rgba(8, 16, 34, 0.86);
   --glass-hi: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.12);
@@ -87,7 +87,7 @@ html.twilight {
   --ink-soft: #ece0ea;
   --ink-faint: #c4b0c6;
 
-  --glass: rgba(40, 26, 58, 0.5);
+  --glass: rgba(40, 26, 58, 0.38);
   --glass-strong: rgba(40, 26, 58, 0.86);
   --glass-hi: rgba(255, 255, 255, 0.07);
   --glass-border: rgba(255, 255, 255, 0.16);
@@ -132,7 +132,7 @@ html.day {
   --bg-2: #fafcff;
   --ink: #142033;
   --ink-soft: #334155;
-  --ink-faint: #64748b;
+  --ink-faint: #334155;
 
   --beacon: #b45309;
   --beacon-bright: #d97706;
@@ -142,9 +142,9 @@ html.day {
   --good: #047857;
   --warn: #c2410c;
 
-  --glass: rgba(248, 251, 255, 0.62);
+  --glass: rgba(248, 251, 255, 0.42);
   --glass-strong: rgba(248, 251, 255, 0.92);
-  --glass-hi: rgba(255, 255, 255, 0.55);
+  --glass-hi: rgba(255, 255, 255, 0.18);
   --glass-border: rgba(255, 255, 255, 0.78);
   --glass-border-strong: rgba(148, 163, 184, 0.55);
   --shadow: 0 18px 50px -24px rgba(15, 30, 60, 0.5);
@@ -386,8 +386,8 @@ body {
 /* Shared glass surface */
 .rail, .canvas {
   background: var(--glass);
-  backdrop-filter: blur(18px) saturate(1.25);
-  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  backdrop-filter: blur(4px) saturate(1.1);
+  -webkit-backdrop-filter: blur(4px) saturate(1.1);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -1246,7 +1246,7 @@ html.day .slot-add:hover { color: var(--beacon); }
   min-width: 0;
   transition: all 0.12s ease;
 }
-html.day .meal-chip { background: rgba(255, 255, 255, 0.82); border-color: var(--glass-border-strong); }
+html.day .meal-chip { background: var(--glass-hi); border-color: var(--glass-border-strong); }
 .meal-chip:hover { border-color: var(--amber-border); }
 .meal-chip[draggable="true"] { cursor: grab; }
 .meal-chip.is-dragging { opacity: 0.4; }
@@ -1290,7 +1290,7 @@ html.day .meal-chip { background: rgba(255, 255, 255, 0.82); border-color: var(-
   display: grid; grid-template-columns: 84px 1fr auto; gap: 14px; align-items: center;
   padding: 10px; border-radius: var(--radius-sm); background: var(--glass); border: 1px solid var(--glass-border);
 }
-html.day .day-meal { background: rgba(255,255,255,0.7); }
+html.day .day-meal { background: var(--glass-hi); }
 .day-meal__img { width: 84px; height: 64px; border-radius: 10px; overflow: hidden; display: grid; place-items: center; font-size: 1.8rem; background: linear-gradient(135deg, var(--placeholder-a), var(--placeholder-b)); }
 .day-meal__img img { width: 100%; height: 100%; object-fit: cover; }
 .day-meal__name { font-weight: 800; font-size: 1rem; text-decoration: none; color: var(--ink); }
@@ -1500,7 +1500,7 @@ html.cooking .recipe-hero { display: none; }
   border: 1px solid var(--glass-border);
   min-height: 56px;
 }
-html.day .shop-item { background: rgba(255,255,255,0.75); }
+html.day .shop-item { background: var(--glass-hi); }
 .shop-check {
   width: 44px; height: 44px; flex: none;
   border-radius: 12px;
