@@ -10,6 +10,7 @@
 - **Stack:** Plain vanilla HTML5, CSS3, ES2015+ JavaScript. No framework, no bundler, no build step. Classic `<script>` files share one `window.Velum` namespace (same split-module pattern as the Arcus refactor) so the engine runs unchanged in Node for tests.
 - **Local-first:** Data persists in `localStorage`; recipe photos live in IndexedDB (the shared `kashikoi.github.io` origin's ~5 MB localStorage quota is used by every suite app). JSON backup files plus optional zero-knowledge encrypted cloud backup.
 - **Deploy:** Static site — open `index.html` directly or serve it (GitHub Pages: `https://kashikoi.github.io/Velum/` once the repo is published).
+- **Phone layout:** iPhone and Android phone browsers open directly to a shopping-only screen with large checkboxes, wrapping item names, and no meal-planning navigation, in portrait or landscape. Desktop/tablet browsers keep the full app. **Backup & restore** remains available to load a shopping list from the planning device; data and checks are local to each browser, not live-synced.
 
 ## Modules
 - **Overview (home)** — eight-day strip, planned recipes with photos, shopping progress, quick actions.
@@ -17,6 +18,7 @@
 - **Recipes** — name, description, photo, categories (breakfast/lunch/dinner/snack/dessert/other, multiple allowed), cuisine, prep/cook/total time, servings, difficulty, tags, grouped ingredients (qty, unit, name, prep, optional), ordered steps, notes, source link, favorite. Paste a whole ingredient list and Velum parses it (`1 ½ cups flour, sifted`, `4 cloves garlic`, `Salt to taste`, `For the sauce:` headings → groups). Search, category/cuisine/tag/favorite filters, five sort orders, duplicate for variations, cook mode (large text, tap-to-check steps, screen stays awake). Scaling servings never changes the saved recipe.
 - **Shopping** — one tap builds a list from all eight days of the plan: ingredients are scaled per meal, consolidated and grouped by aisle. Add your own items ("2 lb apples"), edit or delete anything, check items off with large tap targets, clear checked items, reorder, and keep several lists. When the menu changes, **Update list** shows exactly what will change before applying it.
 - **Ingredients & pantry** — an optional catalog (aisle, default unit, aliases, grams-per-cup density) and an optional pantry (have it / ran out, with or without amounts).
+- **Shopping checklist:** A simple line-by-line list without category headings or recipe-source clutter. Existing aisle/custom order and checked-item preferences are preserved. Tap the ingredient name or large checkbox to toggle it; purchase checks persist automatically. A separate **Edit** button keeps amounts, notes, and recipe sources accessible. Pantry items remain set aside.
 
 ## How the shopping list is calculated
 1. Every recipe meal in all eight plan days contributes its ingredients × (meal servings ÷ recipe servings). Water/ice are skipped; optional ingredients follow the setting.

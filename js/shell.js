@@ -7,7 +7,7 @@
   const W = V.views;
   const esc = U.escapeHtml;
 
-  const APP_VERSION = "2026.11.01.4";
+  const APP_VERSION = "2026.11.01.5";
   const THEME_KEY = "velum_cloud_theme";
   const ACTIVE_THEME_KEY = "velum_cloud_active_theme";
   const THEMES = ["day", "twilight", "night"];
@@ -23,6 +23,7 @@
     arrange: false,
     pantryTab: "pantry",
     listId: null,
+    phoneChecklist: document.documentElement.classList.contains("phone-checklist"),
     canDrag: typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches,
   };
 
@@ -162,6 +163,7 @@
     const query = {};
     (qs || "").split("&").filter(Boolean).forEach((kv) => { const [k, v] = kv.split("="); query[decodeURIComponent(k)] = decodeURIComponent(v || ""); });
     const name = ["menu", "day", "recipes", "recipe", "shopping", "pantry"].indexOf(parts[0]) >= 0 ? parts[0] : "home";
+    if (ui.phoneChecklist) return { name: "shopping", arg: name === "shopping" ? parts[1] || null : null, query: {} };
     let arg = parts[1] || null;
     if (name === "menu") arg = null;
     if (name === "day" && !V.model.isPlanDay(arg)) arg = U.isISODate(arg) ? V.model.legacyDay(arg) : "saturday";
@@ -217,6 +219,10 @@
     }).join("");
   }
   function renderCrumb(db) {
+    if (ui.phoneChecklist) {
+      el.crumb.innerHTML = `<span class="crumb__item crumb__home">VELUM</span><span class="crumb__sep">›</span><span class="crumb__item is-current">Shopping</span>`;
+      return;
+    }
     const r = ui.route;
     const section = NAV.find((n) => n.id === navSection(r.name));
     let html = `<a class="crumb__item crumb__home" href="#/">VELUM</a>`;

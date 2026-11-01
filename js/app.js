@@ -322,6 +322,7 @@
       return;
     }
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(tag);
+    if (ui.phoneChecklist) return;
     if (typing || H.anyModalOpen() || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === "/") {
       const s = $("libSearch");
@@ -337,6 +338,10 @@
   async function init() {
     cacheEls();
     S.init();
+    if (ui.phoneChecklist) {
+      el.settingsBtn.setAttribute("aria-label", "Backup & restore");
+      el.settingsBtn.title = "Backup & restore";
+    }
     el.appVersion.textContent = "v" + H.APP_VERSION;
     H.MODALS.forEach((id) => el[id].addEventListener("click", (e) => { if (e.target.closest("[data-close]")) H.closeModal(id); }));
     el.dialogForm.addEventListener("submit", H.submitDialog);

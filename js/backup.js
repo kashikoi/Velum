@@ -47,6 +47,7 @@
   // ---------- Settings ----------
   function openSettings() {
     const s = S.getDb().settings;
+    el.settingsTitle.textContent = H.ui.phoneChecklist ? "Backup & restore" : "Settings";
     H.updateThemePicker();
     el.sMeasure.value = s.measurement;
     el.sServB.value = s.servings.breakfast;

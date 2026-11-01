@@ -399,12 +399,6 @@
   }
 
   // ---------- Shopping ----------
-  function sourcesText(it) {
-    if (it.manual) return "Added by you";
-    const by = new Map();
-    it.sources.forEach((s) => { if (!by.has(s.recipe)) by.set(s.recipe, []); by.get(s.recipe).push(M.DAY_LABEL[s.day]); });
-    return Array.from(by.entries()).map(([name, days]) => esc(name) + " (" + esc(days.join(", ")) + ")").join(" · ");
-  }
   function itemRow(it, ui, opts) {
     const amount = it.qty == null ? (it.toTaste ? "to taste" : "") : Un.formatAmount(it.qty, it.unit);
     const bought = it.boughtQty != null ? "had " + Un.formatAmount(it.boughtQty, it.boughtUnit) : "";
@@ -414,15 +408,16 @@
       it.qtyEdited ? pill("edited", "info") : "",
       it.toTaste && it.qty != null ? pill("+ to taste", "sm") : "",
     ].join("");
-    const sub = [opts && opts.showCategory ? M.GROCERY_ICON[it.category] + " " + M.GROCERY_LABEL[it.category] : "", sourcesText(it), it.pantryNote ? "🧺 " + esc(it.pantryNote) : "", it.note ? "📝 " + esc(it.note) : ""].filter(Boolean).join(" · ");
+    const sub = [it.pantryNote ? esc(it.pantryNote) : "", it.note ? esc(it.note) : ""].filter(Boolean).join(" · ");
     return `<li class="shop-item${it.purchased ? " is-bought" : ""}${it.stale ? " is-stale" : ""}">
       <button type="button" class="shop-check" data-act="buy" data-id="${esc(it.id)}" aria-pressed="${it.purchased}" aria-label="${it.purchased ? "Unmark" : "Mark"} ${esc(it.name)} as bought">✓</button>
-      <button type="button" class="shop-item__main" data-act="open-item" data-id="${esc(it.id)}">
+      <button type="button" class="shop-item__main" data-act="buy" data-id="${esc(it.id)}" aria-pressed="${it.purchased}" aria-label="${it.purchased ? "Unmark" : "Mark"} ${esc(it.name)} as bought">
         <span class="shop-item__name">${esc(it.name)} ${tags}</span>
         ${sub ? `<span class="shop-item__sub">${sub}</span>` : ""}
         ${it.change && !it.purchased ? `<span class="shop-item__change">${esc(it.change)}${bought ? " · " + esc(bought) : ""}</span>` : ""}
       </button>
       <span class="shop-item__qty">${esc(amount)}</span>
+      <button type="button" class="btn btn--ghost btn--tiny shop-item__edit" data-act="open-item" data-id="${esc(it.id)}" aria-label="Edit ${esc(it.name)}">Edit</button>
       ${opts && opts.pantry ? `<button type="button" class="btn btn--ghost btn--tiny" data-act="pantry-override" data-id="${esc(it.id)}">Need it</button>` : ""}
       ${ui.arrange && !(opts && opts.pantry) ? `<span class="shop-item__arrange"><button type="button" class="mini-btn" data-act="item-move" data-id="${esc(it.id)}" data-delta="-1" aria-label="Move up">▲</button><button type="button" class="mini-btn" data-act="item-move" data-id="${esc(it.id)}" data-delta="1" aria-label="Move down">▼</button></span>` : ""}
     </li>`;
@@ -434,6 +429,13 @@
     const newPlanBtn = !thisList && db.meals.length
       ? `<button type="button" class="btn btn--beacon" data-act="create-plan-list">🛒 Build list for this plan</button>` : "";
     if (!list) {
+      if (ui.phoneChecklist) {
+        return `${pageHead("Shopping checklist", "", "")}<div class="empty">
+          <h2 class="empty__title">No shopping list on this phone yet</h2>
+          <p class="empty__text">Restore a cloud or file backup from your meal-planning device to load its shopping list. Purchase checks are saved on this phone; back up to share them with another device.</p>
+          <div class="empty__actions">${newPlanBtn}<button type="button" class="btn btn--beacon" data-act="open-settings">Load saved list</button>
+          <button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button></div></div>`;
+      }
       return `${pageHead("Shopping", "Lists build themselves from your menu plan.", `<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button>`)}
         <div class="empty"><div class="empty__icon">🛒</div><h2 class="empty__title">No shopping list yet</h2>
         <p class="empty__text">${db.meals.length ? "Your menu plan is ready — build a list and Velum will combine every ingredient." : "Plan some meals first, then build a list in one tap. You can also start a blank list for a quick run."}</p>
@@ -452,25 +454,24 @@
     const shownBought = settings.purchased === "inline" ? [] : bought;
     const inlineSet = settings.purchased === "inline" ? items : open;
 
-    let body = "";
+    let rows = "";
     if (settings.groupBy === "category") {
       order.forEach((cat) => {
         const inCat = sortItems(inlineSet.filter((i) => i.category === cat));
-        if (!inCat.length) return;
-        const left = inCat.filter((i) => !i.purchased).length;
-        body += `<section class="aisle"><h3 class="aisle__title">${M.GROCERY_ICON[cat]} ${M.GROCERY_LABEL[cat]} <span class="aisle__count">${left}${settings.purchased === "inline" ? " / " + inCat.length : ""}</span></h3><ul class="shop-items">${inCat.map((i) => itemRow(i, ui)).join("")}</ul></section>`;
+        rows += inCat.map((i) => itemRow(i, ui)).join("");
       });
     } else {
       const flat = sortItems(inlineSet);
-      if (flat.length) body = `<ul class="shop-items">${flat.map((i) => itemRow(i, ui, { showCategory: true })).join("")}</ul>`;
+      rows = flat.map((i) => itemRow(i, ui)).join("");
     }
+    let body = rows ? `<ul class="shop-items" aria-label="Shopping checklist">${rows}</ul>` : "";
     if (!body && items.length) body = `<div class="insight insight--good"><span class="insight__body"><strong>All done!</strong> Everything on the list is in the cart.</span></div>`;
     if (!items.length) body = `<p class="empty-note">This list is empty. Add items above${linkedMenu ? " or add meals to the plan" : ""}.</p>`;
     if (shownBought.length && settings.purchased === "bottom") {
-      body += `<section class="aisle"><h3 class="aisle__title">✅ In the cart <span class="aisle__count">${shownBought.length}</span></h3><ul class="shop-items">${shownBought.map((i) => itemRow(i, ui, { showCategory: true })).join("")}</ul></section>`;
+      body += `<section class="aisle"><h3 class="aisle__title">In the cart <span class="aisle__count">${shownBought.length}</span></h3><ul class="shop-items">${shownBought.map((i) => itemRow(i, ui)).join("")}</ul></section>`;
     }
     if (pantrySet.length) {
-      body += `<section class="aisle pantry-set"><h3 class="aisle__title">🧺 Already in your pantry <span class="aisle__count">${pantrySet.length}</span></h3><ul class="shop-items">${pantrySet.map((i) => itemRow(i, ui, { pantry: true, showCategory: true })).join("")}</ul></section>`;
+      body += `<section class="aisle pantry-set"><h3 class="aisle__title">Already in your pantry <span class="aisle__count">${pantrySet.length}</span></h3><ul class="shop-items">${pantrySet.map((i) => itemRow(i, ui, { pantry: true })).join("")}</ul></section>`;
     }
 
     return `
@@ -486,11 +487,12 @@
         </div>
       </div>
       ${linkedMenu ? `<div class="insight${outdated ? " insight--warn" : ""}"><span class="insight__body">${outdated ? "<strong>Your menu changed.</strong> Update to pull in new amounts — your checks and edits are kept." : `From your <strong>Saturday-through-Saturday plan</strong>${list.generatedAt ? " · updated " + esc(U.fmtDateTime(list.generatedAt)) : ""}.`}</span>
-        <a class="btn btn--ghost btn--tiny" href="#/menu">Menu</a><button type="button" class="btn ${outdated ? "btn--beacon" : "btn--ghost"} btn--tiny" data-act="regen" data-id="${esc(list.id)}">${outdated ? "Update list" : "Re-sync"}</button></div>` : ""}
+        ${ui.phoneChecklist ? "" : `<a class="btn btn--ghost btn--tiny" href="#/menu">Menu</a>`}<button type="button" class="btn ${outdated ? "btn--beacon" : "btn--ghost"} btn--tiny" data-act="regen" data-id="${esc(list.id)}">${outdated ? "Update list" : "Re-sync"}</button></div>` : ""}
       <div class="shop-progress">
         <div class="shop-progress__text"><span><strong>${bought.length}</strong> of ${items.length} in the cart</span><span>${items.length - bought.length} to go</span></div>
         ${bar(items.length ? bought.length / items.length : 0)}
       </div>
+      <p class="field__hint">Tap an item or its checkbox to check it off. Changes are saved automatically. Use Edit for amounts, notes, and recipe details.</p>
       <form class="quick-add" data-form="quick-add" data-id="${esc(list.id)}" autocomplete="off">
         <input class="field__input" id="quickAdd" placeholder="Add an item… e.g. 2 lb apples, paper towels" aria-label="Add an item" maxlength="200" />
         <button type="submit" class="btn btn--beacon">Add</button>
@@ -500,7 +502,7 @@
         <div class="row-actions">
           <button type="button" class="btn btn--ghost btn--tiny" data-act="clear-done" data-id="${esc(list.id)}"${bought.length ? "" : " disabled"}>Clear ${bought.length || ""} checked</button>
           <button type="button" class="btn btn--ghost btn--tiny" data-act="arrange" aria-pressed="${ui.arrange}">${ui.arrange ? "Done arranging" : "↕ Arrange"}</button>
-          <button type="button" class="btn btn--ghost btn--tiny" data-act="group-toggle">${settings.groupBy === "category" ? "Show as one list" : "Group by aisle"}</button>
+          <button type="button" class="btn btn--ghost btn--tiny" data-act="group-toggle">${settings.groupBy === "category" ? "Use custom order" : "Use aisle order"}</button>
         </div>
         <button type="button" class="btn btn--ghost btn--tiny" data-act="list-status" data-id="${esc(list.id)}">${list.status === "done" ? "Reopen list" : "✓ Finished shopping"}</button>
       </div>`;

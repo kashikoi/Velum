@@ -68,3 +68,65 @@ test("overview and shopping are independent of the current calendar date", () =>
     U.todayISO = original;
   }
 });
+
+test("shopping checklist removes category headings without changing item order or purchase preferences", () => {
+  S.init();
+  const list = S.createList("Weekly groceries");
+  S.addItem(list.id, { name: "Rice", category: "pantry", qty: 2, unit: "lb" });
+  S.addItem(list.id, { name: "Apples", category: "produce", qty: 3 });
+  S.addItem(list.id, { name: "Carrots", category: "produce", qty: 1, unit: "lb" });
+  const names = (html) => [...html.matchAll(/class="shop-item__name">([^<]+) /g)].map((m) => m[1]);
+  let html = W.shopping(S.getDb(), {}, list);
+  assert.deepEqual(names(html), ["Apples", "Carrots", "Rice"]);
+  assert.doesNotMatch(html, /Produce|Pantry<\/h3>|Added by you|Group by aisle/);
+  assert.match(html, /class="shop-item__main" data-act="buy"/);
+  assert.match(html, /data-act="open-item"[^>]*aria-label="Edit Apples"/);
+  S.updateSettings({ categoryOrder: ["pantry", "produce"] });
+  assert.deepEqual(names(W.shopping(S.getDb(), {}, list)), ["Rice", "Apples", "Carrots"]);
+  S.updateSettings({ groupBy: "none" });
+  assert.deepEqual(names(W.shopping(S.getDb(), {}, list)), ["Rice", "Apples", "Carrots"]);
+  const apples = S.listItems(list.id).find((i) => i.name === "Apples");
+  S.togglePurchased(apples.id);
+  assert.deepEqual(names(W.shopping(S.getDb(), {}, list)), ["Rice", "Carrots", "Apples"]);
+  S.updateSettings({ purchased: "inline" });
+  assert.deepEqual(names(W.shopping(S.getDb(), {}, list)), ["Rice", "Apples", "Carrots"]);
+  S.updateSettings({ purchased: "hide" });
+  html = W.shopping(S.getDb(), {}, list);
+  assert.deepEqual(names(html), ["Rice", "Carrots"]);
+});
+
+test("phone checklist keeps backup loading and item editing but removes meal-plan navigation", () => {
+  S.init();
+  const ui = { phoneChecklist: true };
+  const empty = W.shopping(S.getDb(), ui, null);
+  assert.match(empty, /Load saved list/);
+  assert.match(empty, /data-act="open-settings"/);
+  assert.doesNotMatch(empty, /href="#\/menu"/);
+  S.addMeal({ day: "saturday", meal: "dinner", title: "Dinner out" });
+  const { list } = S.createListForPlan();
+  S.addItem(list.id, { name: "<Apples>", qty: 2, note: "Small & crisp" });
+  const html = W.shopping(S.getDb(), ui, list);
+  assert.doesNotMatch(html, /href="#\/menu"/);
+  assert.match(html, /data-act="regen"/);
+  assert.match(html, /&lt;Apples&gt;/);
+  assert.match(html, /Small &amp; crisp/);
+  assert.match(html, /data-act="open-item"/);
+  assert.match(W.shopping(S.getDb(), {}, list), /href="#\/menu"/, "desktop keeps the full app navigation");
+});
+
+test("checklist keeps pantry items separate and cleared items hidden", () => {
+  S.init();
+  S.replaceDb(M.normalizeDb({
+    lists: [{ id: "groceries", name: "Groceries" }],
+    items: [
+      { id: "salt", listId: "groceries", name: "Salt", category: "pantry", inPantry: true, sortOrder: 0 },
+      { id: "apples", listId: "groceries", name: "Apples", category: "produce", sortOrder: 1 },
+      { id: "removed", listId: "groceries", name: "Removed item", cleared: true, sortOrder: 2 },
+    ],
+  }));
+  const html = W.shopping(S.getDb(), { phoneChecklist: true }, S.getDb().lists[0]);
+  assert.match(html, /Already in your pantry/);
+  assert.ok(html.indexOf('class="shop-item__name">Apples') < html.indexOf('class="shop-item__name">Salt'));
+  assert.match(html, /data-act="pantry-override"/);
+  assert.doesNotMatch(html, /Removed item/);
+});
