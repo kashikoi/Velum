@@ -409,7 +409,9 @@
       it.toTaste && it.qty != null ? pill("+ to taste", "sm") : "",
     ].join("");
     const sub = [it.pantryNote ? esc(it.pantryNote) : "", it.note ? esc(it.note) : ""].filter(Boolean).join(" · ");
-    return `<li class="shop-item${it.purchased ? " is-bought" : ""}${it.stale ? " is-stale" : ""}">
+    const drag = opts && opts.drag;
+    return `<li class="shop-item${it.purchased ? " is-bought" : ""}${it.stale ? " is-stale" : ""}${drag ? " is-draggable" : ""}" data-item-id="${esc(it.id)}">
+      ${drag ? `<span class="shop-item__grip" data-grip aria-hidden="true" title="Drag to reorder">⠿</span>` : ""}
       <button type="button" class="shop-check" data-act="buy" data-id="${esc(it.id)}" aria-pressed="${it.purchased}" aria-label="${it.purchased ? "Unmark" : "Mark"} ${esc(it.name)} as bought">✓</button>
       <button type="button" class="shop-item__main" data-act="buy" data-id="${esc(it.id)}" aria-pressed="${it.purchased}" aria-label="${it.purchased ? "Unmark" : "Mark"} ${esc(it.name)} as bought">
         <span class="shop-item__name">${esc(it.name)} ${tags}</span>
@@ -454,22 +456,24 @@
     const open = items.filter((i) => !i.purchased);
     const shownBought = purchased === "inline" ? [] : bought;
     const inlineSet = purchased === "inline" ? items : open;
+    const dragOpts = ui.phoneChecklist ? undefined : { drag: true };
+    const dragAttr = ui.phoneChecklist ? "" : ` data-drag-list="${esc(list.id)}"`;
 
     let rows = "";
     if (settings.groupBy === "category") {
       order.forEach((cat) => {
         const inCat = sortItems(inlineSet.filter((i) => i.category === cat));
-        rows += inCat.map((i) => itemRow(i, ui)).join("");
+        rows += inCat.map((i) => itemRow(i, ui, dragOpts)).join("");
       });
     } else {
       const flat = sortItems(inlineSet);
-      rows = flat.map((i) => itemRow(i, ui)).join("");
+      rows = flat.map((i) => itemRow(i, ui, dragOpts)).join("");
     }
-    let body = rows ? `<ul class="shop-items" aria-label="Shopping checklist">${rows}</ul>` : "";
+    let body = rows ? `<ul class="shop-items" aria-label="Shopping checklist"${dragAttr}>${rows}</ul>` : "";
     if (!body && items.length) body = `<div class="insight insight--good"><span class="insight__body"><strong>All done!</strong> Everything on the list is in the cart.</span></div>`;
     if (!items.length) body = `<p class="empty-note">This list is empty. Add items above${linkedMenu ? " or add meals to the plan" : ""}.</p>`;
     if (shownBought.length && purchased === "bottom") {
-      body += `<section class="aisle"><h3 class="aisle__title">In the cart <span class="aisle__count">${shownBought.length}</span></h3><ul class="shop-items">${shownBought.map((i) => itemRow(i, ui)).join("")}</ul></section>`;
+      body += `<section class="aisle"><h3 class="aisle__title">In the cart <span class="aisle__count">${shownBought.length}</span></h3><ul class="shop-items"${dragAttr}>${shownBought.map((i) => itemRow(i, ui, dragOpts)).join("")}</ul></section>`;
     }
     if (pantrySet.length) {
       body += `<section class="aisle pantry-set"><h3 class="aisle__title">Already in your pantry <span class="aisle__count">${pantrySet.length}</span></h3><ul class="shop-items">${pantrySet.map((i) => itemRow(i, ui, { pantry: true })).join("")}</ul></section>`;
@@ -493,7 +497,7 @@
         <div class="shop-progress__text"><span><strong>${bought.length}</strong> of ${items.length} in the cart</span><span>${items.length - bought.length} to go</span></div>
         ${bar(items.length ? bought.length / items.length : 0)}
       </div>
-      <p class="field__hint">Tap an item or its checkbox to check it off. Changes are saved automatically. Use Edit for amounts, notes, and recipe details.</p>
+      <p class="field__hint">Tap an item or its checkbox to check it off. Changes are saved automatically. Use Edit for amounts, notes, and recipe details.${ui.phoneChecklist ? "" : " Drag items (or their ⠿ handle) to rearrange."}</p>
       <form class="quick-add" data-form="quick-add" data-id="${esc(list.id)}" autocomplete="off">
         <input class="field__input" id="quickAdd" placeholder="Add an item… e.g. 2 lb apples, paper towels" aria-label="Add an item" maxlength="200" />
         <button type="submit" class="btn btn--beacon">Add</button>

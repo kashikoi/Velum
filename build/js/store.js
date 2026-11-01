@@ -453,6 +453,36 @@
     peers.forEach((x, k) => { x.sortOrder = slots[k]; });
     commit();
   }
+  // Applies a drag-and-drop order for one visible section. In aisle order the dropped item adopts the
+  // aisle it lands in, so the category sort keeps it where it was dropped.
+  function dropItem(id, orderedIds) {
+    const it = find("items", id, "item");
+    const seen = new Set();
+    const peers = (Array.isArray(orderedIds) ? orderedIds : []).map((x) => {
+      const p = db.items.find((i) => i.id === x);
+      if (!p || seen.has(x) || p.listId !== it.listId || p.cleared) return null;
+      seen.add(x);
+      return p;
+    }).filter(Boolean);
+    const i = peers.indexOf(it);
+    if (i < 0) fail("That item isn't on this list.");
+    let category = null;
+    if (db.settings.groupBy === "category") {
+      const prev = peers[i - 1], next = peers[i + 1];
+      const near = [prev, next].filter(Boolean).map((x) => x.category);
+      if (near.length && near.indexOf(it.category) < 0) {
+        category = prev ? prev.category : next.category;
+        it.category = category;
+        it.categoryEdited = !it.manual;
+      }
+    }
+    const slots = peers.map((x) => x.sortOrder).sort((a, b) => a - b);
+    for (let k = 1; k < slots.length; k++) if (slots[k] <= slots[k - 1]) slots[k] = slots[k - 1] + 1;
+    peers.forEach((x, k) => { x.sortOrder = slots[k]; });
+    touchList(it.listId);
+    commit();
+    return { item: it, category };
+  }
 
   // ---------- Ingredient catalog ----------
   function validateIngredient(f, exceptId) {
@@ -662,7 +692,7 @@
     ensureMenu, renameMenu, addMeal, updateMeal, moveMeal, copyMeal, removeMeal, toggleMealDone, copyDay, clearDay, clearPlan,
     listItems, listForMenu, createList, createListForPlan, menuForList, previewRegenerate, applyRegenerate, isListOutdated,
     renameList, deleteList, setListStatus,
-    addItem, quickAddItem, updateItem, resetItemToMenu, togglePurchased, setPantryOverride, deleteItem, restoreItem, clearCompleted, moveItem,
+    addItem, quickAddItem, updateItem, resetItemToMenu, togglePurchased, setPantryOverride, deleteItem, restoreItem, clearCompleted, moveItem, dropItem,
     createIngredient, updateIngredient, deleteIngredient, learnFromRecipes,
     addPantry, quickAddPantry, updatePantry, deletePantry,
     occasionalItems, addOccasional, updateOccasional, deleteOccasional, restoreOccasional, moveOccasional, occasionalOnList, needOccasional,

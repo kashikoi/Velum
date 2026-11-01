@@ -1539,6 +1539,24 @@ html.day .shop-item { background: var(--glass-hi); }
 .shop-item.is-stale { border-style: dashed; }
 .shop-item__arrange { display: flex; flex-direction: column; gap: 3px; }
 .shop-item__arrange .mini-btn { width: 28px; height: 22px; font-size: 0.7rem; }
+.shop-item.is-draggable { position: relative; cursor: grab; }
+.shop-item__grip {
+  flex: none; align-self: stretch;
+  display: grid; place-items: center;
+  width: 22px; margin-right: -4px;
+  color: var(--ink-faint); font-size: 1.1rem; line-height: 1;
+  cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.shop-item.is-draggable:hover .shop-item__grip { color: var(--ink-soft); }
+.shop-item.is-dragging, html.day .shop-item.is-dragging { position: relative; z-index: 5; background: var(--glass-strong); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); opacity: 0.92; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28); pointer-events: none; transition: none; }
+.shop-item.is-drop-before::before,
+.shop-item.is-drop-after::after {
+  content: ""; position: absolute; left: 8px; right: 8px; height: 3px; border-radius: 3px;
+  background: var(--beacon); pointer-events: none;
+}
+.shop-item.is-drop-before::before { top: -6px; }
+.shop-item.is-drop-after::after { bottom: -6px; }
+html.is-shop-dragging, html.is-shop-dragging * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
 .pantry-set { opacity: 0.85; }
 .pantry-set .shop-item { border-style: dashed; }
 .list-foot { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; }

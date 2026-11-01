@@ -348,6 +348,72 @@
     });
   }
 
+  // ---------- Drag to reorder shopping items (mouse anywhere on a row; touch via the ⠿ grip) ----------
+  let shopDrag = null;
+  let swallowClick = false;
+  function shopDropTarget(d, y) {
+    const rows = [...d.ul.children].filter((n) => n !== d.row && n.dataset.itemId);
+    const before = rows.find((n) => { const r = n.getBoundingClientRect(); return y < r.top + r.height / 2; }) || null;
+    return { rows, before };
+  }
+  function clearShopDrag() {
+    if (!shopDrag) return;
+    const d = shopDrag;
+    shopDrag = null;
+    d.row.classList.remove("is-dragging");
+    d.row.style.transform = "";
+    d.ul.querySelectorAll(".is-drop-before, .is-drop-after").forEach((n) => n.classList.remove("is-drop-before", "is-drop-after"));
+    document.documentElement.classList.remove("is-shop-dragging");
+  }
+  function bindShopDrag() {
+    el.canvas.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || shopDrag) return;
+      const row = e.target.closest && e.target.closest(".shop-item.is-draggable");
+      const ul = row && row.closest("[data-drag-list]");
+      if (!ul || e.target.closest(".shop-item__edit, .mini-btn, input, select")) return;
+      const grip = !!e.target.closest("[data-grip]");
+      if (e.pointerType === "touch" && !grip) return;
+      if (grip) e.preventDefault();
+      shopDrag = { row, ul, id: row.dataset.itemId, pointerId: e.pointerId, x: e.clientX, y: e.clientY, started: false };
+    });
+    window.addEventListener("pointermove", (e) => {
+      const d = shopDrag;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (!d.started) {
+        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 6) return;
+        d.started = true;
+        d.row.classList.add("is-dragging");
+        document.documentElement.classList.add("is-shop-dragging");
+      }
+      e.preventDefault();
+      d.row.style.transform = `translateY(${e.clientY - d.y}px)`;
+      const { rows, before } = shopDropTarget(d, e.clientY);
+      rows.forEach((n) => n.classList.remove("is-drop-before", "is-drop-after"));
+      if (before) before.classList.add("is-drop-before");
+      else if (rows.length) rows[rows.length - 1].classList.add("is-drop-after");
+      if (e.clientY < 70) window.scrollBy(0, -12);
+      else if (e.clientY > innerHeight - 70) window.scrollBy(0, 12);
+    }, { passive: false });
+    const finish = (e) => {
+      const d = shopDrag;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (!d.started || e.type === "pointercancel") { clearShopDrag(); return; }
+      const { rows, before } = shopDropTarget(d, e.clientY);
+      const ids = rows.map((n) => n.dataset.itemId);
+      ids.splice(before ? ids.indexOf(before.dataset.itemId) : ids.length, 0, d.id);
+      clearShopDrag();
+      swallowClick = true;
+      setTimeout(() => { swallowClick = false; }, 0);
+      const res = H.attempt(() => S.dropItem(d.id, ids));
+      if (res.ok && res.value.category) H.toast(`${res.value.item.name} moved to the ${M.GROCERY_LABEL[res.value.category]} aisle.`);
+    };
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    el.canvas.addEventListener("click", (e) => {
+      if (swallowClick) { e.preventDefault(); e.stopPropagation(); swallowClick = false; }
+    }, true);
+  }
+
   // ---------- Keyboard ----------
   function onKeydown(e) {
     if (e.key === "Escape") {
@@ -401,6 +467,7 @@
       if (row && e.key === "Enter") E.openIngredientModal(row.dataset.editIngredient);
     });
     if (ui.canDrag) bindDragDrop();
+    bindShopDrag();
     el.topNewRecipeBtn.addEventListener("click", () => E.openRecipeEditor(null));
     el.planMealBtn.addEventListener("click", planNext);
     document.addEventListener("keydown", onKeydown);

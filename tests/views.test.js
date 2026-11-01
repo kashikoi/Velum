@@ -226,3 +226,36 @@ test("occasional page shows list status and phone shopping hides the occasional 
   assert.match(W.shopping(S.getDb(), {}, list), /href="#\/occasional"/);
   assert.doesNotMatch(W.shopping(S.getDb(), { phoneChecklist: true }, list), /occasional/i);
 });
+
+test("dragging shopping items keeps them where they are dropped, adopting the aisle in aisle order", () => {
+  S.init();
+  const list = S.createList("Run");
+  const names = ["apples", "bananas", "milk", "cheese", "bread"].map((n) => S.quickAddItem(list.id, n));
+  const [apples, bananas, milk, cheese, bread] = names;
+  const shown = () => [...W.shopping(S.getDb(), {}, list).matchAll(/data-item-id="([^"]+)"/g)].map((m) => m[1]);
+  const html = W.shopping(S.getDb(), {}, list);
+  assert.match(html, /data-drag-list=/);
+  assert.match(html, /data-grip/);
+  assert.doesNotMatch(W.shopping(S.getDb(), { phoneChecklist: true }, list), /data-drag-list|data-grip/);
+
+  const before = shown();
+  const within = before.filter((id) => id !== bananas.id);
+  within.splice(within.indexOf(apples.id), 0, bananas.id);
+  const r1 = S.dropItem(bananas.id, within);
+  assert.equal(r1.category, null);
+  assert.deepEqual(shown(), within);
+
+  const cross = shown().filter((id) => id !== bread.id);
+  cross.splice(cross.indexOf(milk.id), 0, bread.id);
+  const prevCat = S.getDb().items.find((i) => i.id === cross[cross.indexOf(bread.id) - 1]).category;
+  const r2 = S.dropItem(bread.id, cross);
+  assert.equal(r2.category, prevCat);
+  assert.deepEqual(shown(), cross, "cross-aisle drop sticks in aisle order");
+
+  S.updateSettings({ groupBy: "none" });
+  const custom = shown().filter((id) => id !== cheese.id);
+  custom.unshift(cheese.id);
+  assert.equal(S.dropItem(cheese.id, custom).category, null);
+  assert.deepEqual(shown(), custom);
+  assert.throws(() => S.dropItem(cheese.id, [apples.id]), S.ValidationError);
+});
