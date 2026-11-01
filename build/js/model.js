@@ -8,7 +8,7 @@
   const PLAN_DAYS = ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "following-saturday"];
   const DAY_LABEL = {
     saturday: "Saturday", sunday: "Sunday", monday: "Monday", tuesday: "Tuesday",
-    wednesday: "Wednesday", thursday: "Thursday", friday: "Friday", "following-saturday": "Following Saturday",
+    wednesday: "Wednesday", thursday: "Thursday", friday: "Friday", "following-saturday": "Saturday",
   };
   function isPlanDay(day) { return PLAN_DAYS.indexOf(day) >= 0; }
   function legacyDay(date) {

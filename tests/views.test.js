@@ -17,6 +17,9 @@ test("plan and day views use eight fixed named days and no date controls", () =>
   assert.equal((html.match(/role="gridcell"/g) || []).length, 24);
   const headings = [...html.matchAll(/class="wg-day__name">([^<]+)</g)].map((m) => m[1]);
   assert.deepEqual(headings, M.PLAN_DAYS.map((d) => M.DAY_LABEL[d]));
+  assert.equal(headings[0], "Saturday");
+  assert.equal(headings[7], "Saturday");
+  assert.doesNotMatch(html, /Following Saturday/);
   assert.match(html, /of 24 planned/);
   assert.doesNotMatch(html, /type="date"|Previous week|Next week|Copy week|Start from another week|today|is-past/);
   const first = W.menuDay(db, ui, "saturday");
@@ -26,7 +29,7 @@ test("plan and day views use eight fixed named days and no date controls", () =>
   assert.match(first, /#\/day\/sunday/);
   assert.match(last, /#\/day\/friday/);
   assert.equal((W.dayOptions("following-saturday").match(/<option/g) || []).length, 8);
-  assert.match(W.dayOptions("following-saturday"), /value="following-saturday" selected/);
+  assert.match(W.dayOptions("following-saturday"), /value="following-saturday" selected>Saturday<\/option>/);
 });
 
 test("overview and shopping are independent of the current calendar date", () => {

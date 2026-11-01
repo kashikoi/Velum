@@ -111,7 +111,7 @@
     return `
       <section class="hero">
         <div class="hero__top">
-          <div><p class="hero__eyebrow">Saturday through the following Saturday</p>
+          <div><p class="hero__eyebrow">Saturday through Saturday</p>
           <h2 class="hero__title">${esc((menu && menu.name) || "Your menu plan")}</h2></div>
           <a class="btn btn--beacon" href="#/menu">Open menu plan</a>
         </div>
@@ -140,7 +140,7 @@
     return `<div class="empty">
       <div class="empty__icon">🥘</div>
       <h2 class="empty__title">Welcome to Velum</h2>
-      <p class="empty__text">Keep the recipes you love, plan breakfast, lunch and dinner from Saturday through the following Saturday, and Velum adds up exactly what to buy &mdash; combined, converted and sorted by aisle. Your plan stays until you change it.</p>
+      <p class="empty__text">Keep the recipes you love, plan breakfast, lunch and dinner from Saturday through Saturday, and Velum adds up exactly what to buy &mdash; combined, converted and sorted by aisle. Your plan stays until you change it.</p>
       <div class="empty__actions">
         <button type="button" class="btn btn--beacon" data-act="new-recipe">+ Add your first recipe</button>
         <button type="button" class="btn btn--ghost" data-act="starter">Load starter recipes</button>
@@ -161,7 +161,7 @@
         ${day ? `${index > 0 ? `<a class="btn btn--icon" href="#/day/${M.PLAN_DAYS[index - 1]}" aria-label="Previous day">‹</a>` : ""}
           <select class="field__input" data-change="pick-day" aria-label="Choose a day">${dayOptions(day)}</select>
           ${index < M.PLAN_DAYS.length - 1 ? `<a class="btn btn--icon" href="#/day/${M.PLAN_DAYS[index + 1]}" aria-label="Next day">›</a>` : ""}`
-          : `<span class="week-nav__range">Saturday → Following Saturday</span>`}
+          : `<span class="week-nav__range">Saturday → Saturday</span>`}
       </div>
       <div class="seg seg--inline" role="tablist">
         <a class="seg__btn${day ? "" : " is-active"}" href="#/menu" role="tab" aria-selected="${!day}">Plan</a>
