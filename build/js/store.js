@@ -1,5 +1,5 @@
 /* Velum — application services & persistence. Every mutation goes through here: validate, keep
-   relationships consistent (recipes referenced by meal history are archived, never erased), persist, notify. */
+   relationships consistent (recipes referenced by the plan are archived, never erased), persist, notify. */
 (function (V) {
   "use strict";
   const U = V.util;
@@ -49,28 +49,8 @@
 
   // ---------- Settings ----------
   function updateSettings(patch) {
-    const prevStart = db.settings.weekStartsOn;
     db.settings = M.normalizeSettings(Object.assign({}, db.settings, patch));
-    if (db.settings.weekStartsOn !== prevStart) rekeyMenus();
     commit();
-  }
-  // When the first day of the week changes, snap each menu to the new week boundary (merging collisions).
-  function rekeyMenus() {
-    const byStart = new Map();
-    db.menus.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt)).forEach((m) => {
-      // Snap to the nearest boundary so a menu keeps most of its days (and toggling back is lossless).
-      let start = U.weekStartFor(m.weekStart, db.settings.weekStartsOn);
-      if (U.daysBetween(start, m.weekStart) > 3) start = U.addDays(start, 7);
-      const keep = byStart.get(start);
-      if (keep) {
-        db.lists.forEach((l) => { if (l.menuId === m.id) l.menuId = keep.id; });
-        if (!keep.name && m.name) keep.name = m.name;
-      } else {
-        m.weekStart = start;
-        byStart.set(start, m);
-      }
-    });
-    db.menus = Array.from(byStart.values());
   }
 
   // ---------- Recipes ----------
@@ -137,7 +117,7 @@
     return r.favorite;
   }
   function recipeUsage(id) { return db.meals.filter((m) => m.recipeId === id); }
-  // Recipes still referenced by meal history are archived (hidden from the library, still shown in old weeks).
+  // Recipes still referenced by the plan are archived, not erased.
   function deleteRecipe(id) {
     const r = find("recipes", id, "recipe");
     if (recipeUsage(id).length) {
@@ -159,49 +139,52 @@
   }
 
   // ---------- Menus & meals ----------
-  function ensureMenu(weekStart) {
-    let m = P.menuForWeek(db, weekStart);
+  function ensureMenu() {
+    let m = P.menuForPlan(db);
     if (!m) {
-      m = M.normalizeMenu({ weekStart, createdAt: now(), updatedAt: now() });
+      m = M.normalizeMenu({ createdAt: now(), updatedAt: now() });
       db.menus.push(m);
     }
     return m;
   }
-  function renameMenu(weekStart, name) {
-    const m = ensureMenu(weekStart);
+  function renameMenu(name) {
+    const m = ensureMenu();
     m.name = U.str(name, 80);
     m.updatedAt = now();
     commit();
   }
-  function touchWeek(date) { const m = ensureMenu(P.weekOf(db, date)); m.updatedAt = now(); }
+  function touchPlan() { const m = ensureMenu(); m.updatedAt = now(); }
   function markUsed(recipeId) {
     const r = db.recipes.find((x) => x.id === recipeId);
     if (r) r.lastUsedAt = now();
   }
-  function validateSlot(date, meal) {
-    if (!U.isISODate(date)) fail("Pick a valid date.");
+  function validateSlot(day, meal) {
+    if (!M.isPlanDay(day)) fail("Pick a day from Saturday through the following Saturday.");
     if (M.MEAL_TYPES.indexOf(meal) < 0) fail("Pick breakfast, lunch or dinner.");
   }
   function addMeal(f) {
-    validateSlot(f.date, f.meal);
+    validateSlot(f.day, f.meal);
     if (f.recipeId) {
       const r = find("recipes", f.recipeId, "recipe");
       if (r.archived) fail("That recipe is archived. Restore it from the library first.");
     } else if (!U.str(f.title)) fail("Pick a recipe or type a short note like \"Leftovers\".");
     const servings = U.numOrNull(f.servings) || db.settings.servings[f.meal];
     const meal = M.normalizeMeal({
-      date: f.date, meal: f.meal, recipeId: f.recipeId || null, title: f.recipeId ? "" : f.title,
-      servings, note: f.note, sortOrder: nextSort(P.slotMeals(db, f.date, f.meal)),
+      day: f.day, meal: f.meal, recipeId: f.recipeId || null, title: f.recipeId ? "" : f.title,
+      servings, note: f.note, sortOrder: nextSort(P.slotMeals(db, f.day, f.meal)),
     });
     db.meals.push(meal);
     if (meal.recipeId) markUsed(meal.recipeId);
-    touchWeek(meal.date);
+    touchPlan();
     commit();
     return meal;
   }
   function updateMeal(id, patch) {
     const m = find("meals", id, "meal");
     const p = Object.assign({}, patch);
+    const day = p.day !== undefined ? p.day : m.day;
+    const meal = p.meal !== undefined ? p.meal : m.meal;
+    validateSlot(day, meal);
     if (p.recipeId !== undefined) {
       if (p.recipeId) {
         const r = find("recipes", p.recipeId, "recipe");
@@ -222,34 +205,30 @@
     }
     if (p.note !== undefined) m.note = U.str(p.note, 500);
     if (p.done !== undefined) m.done = !!p.done;
-    if (p.date !== undefined || p.meal !== undefined) {
-      const date = p.date !== undefined ? p.date : m.date;
-      const meal = p.meal !== undefined ? p.meal : m.meal;
-      validateSlot(date, meal);
-      if (date !== m.date || meal !== m.meal) {
-        touchWeek(m.date);
-        m.date = date; m.meal = meal;
-        m.sortOrder = nextSort(P.slotMeals(db, date, meal).filter((x) => x.id !== m.id));
+    if (p.day !== undefined || p.meal !== undefined) {
+      if (day !== m.day || meal !== m.meal) {
+        m.day = day; m.meal = meal;
+        m.sortOrder = nextSort(P.slotMeals(db, day, meal).filter((x) => x.id !== m.id));
       }
     }
-    touchWeek(m.date);
+    touchPlan();
     commit();
     return m;
   }
-  function moveMeal(id, date, meal) { return updateMeal(id, { date, meal }); }
-  function copyMeal(id, date, meal) {
+  function moveMeal(id, day, meal) { return updateMeal(id, { day, meal }); }
+  function copyMeal(id, day, meal) {
     const m = find("meals", id, "meal");
-    validateSlot(date, meal);
-    const c = M.normalizeMeal(Object.assign({}, m, { id: undefined, date, meal, done: false, sortOrder: nextSort(P.slotMeals(db, date, meal)) }));
+    validateSlot(day, meal);
+    const c = M.normalizeMeal(Object.assign({}, m, { id: undefined, day, meal, done: false, sortOrder: nextSort(P.slotMeals(db, day, meal)) }));
     db.meals.push(c);
-    touchWeek(date);
+    touchPlan();
     commit();
     return c;
   }
   function removeMeal(id) {
     const m = find("meals", id, "meal");
     db.meals = db.meals.filter((x) => x.id !== id);
-    touchWeek(m.date);
+    touchPlan();
     commit();
     return m;
   }
@@ -260,54 +239,31 @@
     return m.done;
   }
   // mode "replace" clears the target first; "merge" appends.
-  function copyDay(fromDate, toDate, mode) {
-    if (!U.isISODate(fromDate) || !U.isISODate(toDate)) fail("Pick a valid date.");
-    if (fromDate === toDate) fail("Pick a different day to copy to.");
-    const src = db.meals.filter((m) => m.date === fromDate);
+  function copyDay(fromDay, toDay, mode) {
+    if (!M.isPlanDay(fromDay) || !M.isPlanDay(toDay)) fail("Pick a day from the plan.");
+    if (fromDay === toDay) fail("Pick a different day to copy to.");
+    const src = db.meals.filter((m) => m.day === fromDay);
     if (!src.length) fail("There's nothing planned on that day to copy.");
-    if (mode === "replace") db.meals = db.meals.filter((m) => m.date !== toDate);
+    if (mode === "replace") db.meals = db.meals.filter((m) => m.day !== toDay);
     src.forEach((m) => {
-      db.meals.push(M.normalizeMeal(Object.assign({}, m, { id: undefined, date: toDate, done: false, sortOrder: nextSort(P.slotMeals(db, toDate, m.meal)) })));
+      db.meals.push(M.normalizeMeal(Object.assign({}, m, { id: undefined, day: toDay, done: false, sortOrder: nextSort(P.slotMeals(db, toDay, m.meal)) })));
     });
-    touchWeek(toDate);
+    touchPlan();
     commit();
     return src.length;
   }
-  function clearDay(date) {
-    const n = db.meals.filter((m) => m.date === date).length;
-    db.meals = db.meals.filter((m) => m.date !== date);
-    touchWeek(date);
+  function clearDay(day) {
+    if (!M.isPlanDay(day)) fail("Pick a day from the plan.");
+    const n = db.meals.filter((m) => m.day === day).length;
+    db.meals = db.meals.filter((m) => m.day !== day);
+    touchPlan();
     commit();
     return n;
   }
-  // Copies a week's meals day-by-day onto another week. Never touches the source week.
-  function copyWeek(fromStart, toStart, mode) {
-    if (!U.isISODate(fromStart) || !U.isISODate(toStart)) fail("Pick a valid week.");
-    fromStart = P.weekOf(db, fromStart);
-    toStart = P.weekOf(db, toStart);
-    if (fromStart === toStart) fail("Pick a different week to copy to.");
-    const src = P.mealsForWeek(db, fromStart);
-    if (!src.length) fail("That week has no meals to copy.");
-    if (mode === "replace") {
-      const end = U.addDays(toStart, 7);
-      db.meals = db.meals.filter((m) => !(m.date >= toStart && m.date < end));
-    }
-    src.forEach((m) => {
-      const date = U.addDays(toStart, U.daysBetween(fromStart, m.date));
-      db.meals.push(M.normalizeMeal(Object.assign({}, m, { id: undefined, date, done: false, sortOrder: nextSort(P.slotMeals(db, date, m.meal)) })));
-    });
-    const fromMenu = P.menuForWeek(db, fromStart);
-    const toMenu = ensureMenu(toStart);
-    if (fromMenu && fromMenu.name && !toMenu.name) toMenu.name = fromMenu.name;
-    toMenu.updatedAt = now();
-    commit();
-    return src.length;
-  }
-  function clearWeek(weekStart) {
-    const end = U.addDays(weekStart, 7);
-    const n = db.meals.filter((m) => m.date >= weekStart && m.date < end).length;
-    db.meals = db.meals.filter((m) => !(m.date >= weekStart && m.date < end));
-    touchWeek(weekStart);
+  function clearPlan() {
+    const n = db.meals.length;
+    db.meals = [];
+    touchPlan();
     commit();
     return n;
   }
@@ -321,14 +277,14 @@
     commit();
     return l;
   }
-  // Creates (or returns) the list attached to a week's menu and fills it from the menu.
-  function createListForWeek(weekStart) {
-    const menu = ensureMenu(weekStart);
+  // Creates (or returns) the list attached to the reusable plan.
+  function createListForPlan() {
+    const menu = ensureMenu();
     let l = listForMenu(menu.id);
     if (l) return { list: l, created: false };
-    l = M.normalizeList({ menuId: menu.id, name: "Week of " + U.fmtShort(weekStart), createdAt: now(), updatedAt: now() });
+    l = M.normalizeList({ menuId: menu.id, name: menu.name || "Menu shopping list", createdAt: now(), updatedAt: now() });
     db.lists.push(l);
-    const generated = P.generateForWeek(db, weekStart);
+    const generated = P.generateForPlan(db);
     const res = P.reconcile([], generated, l.id);
     db.items = db.items.concat(res.items);
     l.generatedAt = now();
@@ -336,16 +292,14 @@
     commit();
     return { list: l, created: true, changes: res.changes };
   }
-  function weekStartForList(l) {
-    const menu = l.menuId && db.menus.find((m) => m.id === l.menuId);
-    return menu ? menu.weekStart : null;
+  function menuForList(l) {
+    return l.menuId ? db.menus.find((m) => m.id === l.menuId) || null : null;
   }
   // Dry run of regenerating a list from its menu (nothing is saved).
   function previewRegenerate(listId) {
     const l = find("lists", listId, "shopping list");
-    const ws = weekStartForList(l);
-    if (!ws) fail("This list isn't linked to a weekly menu.");
-    const generated = P.generateForWeek(db, ws);
+    if (!menuForList(l)) fail("This list isn't linked to the menu plan.");
+    const generated = P.generateForPlan(db);
     return Object.assign(P.reconcile(listItems(listId), generated, listId), { signature: P.signature(generated) });
   }
   function applyRegenerate(listId) {
@@ -360,9 +314,8 @@
   }
   function isListOutdated(listId) {
     const l = db.lists.find((x) => x.id === listId);
-    const ws = l && weekStartForList(l);
-    if (!ws) return false;
-    return P.signature(P.generateForWeek(db, ws)) !== l.signature;
+    if (!l || !menuForList(l)) return false;
+    return P.signature(P.generateForPlan(db)) !== l.signature;
   }
   function renameList(id, name) {
     const l = find("lists", id, "shopping list");
@@ -626,8 +579,8 @@
     STORE_KEY, ValidationError, init, load, onChange, replaceDb, getDb, commit,
     updateSettings,
     createRecipe, updateRecipe, duplicateRecipe, toggleFavorite, deleteRecipe, restoreRecipe, recipeUsage, addRecipes,
-    ensureMenu, renameMenu, addMeal, updateMeal, moveMeal, copyMeal, removeMeal, toggleMealDone, copyDay, clearDay, copyWeek, clearWeek,
-    listItems, listForMenu, createList, createListForWeek, weekStartForList, previewRegenerate, applyRegenerate, isListOutdated,
+    ensureMenu, renameMenu, addMeal, updateMeal, moveMeal, copyMeal, removeMeal, toggleMealDone, copyDay, clearDay, clearPlan,
+    listItems, listForMenu, createList, createListForPlan, menuForList, previewRegenerate, applyRegenerate, isListOutdated,
     renameList, deleteList, setListStatus,
     addItem, quickAddItem, updateItem, resetItemToMenu, togglePurchased, setPantryOverride, deleteItem, restoreItem, clearCompleted, moveItem,
     createIngredient, updateIngredient, deleteIngredient, learnFromRecipes,

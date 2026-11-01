@@ -4,7 +4,16 @@
   const U = V.util;
   const Un = V.units;
 
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
+  const PLAN_DAYS = ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "following-saturday"];
+  const DAY_LABEL = {
+    saturday: "Saturday", sunday: "Sunday", monday: "Monday", tuesday: "Tuesday",
+    wednesday: "Wednesday", thursday: "Thursday", friday: "Friday", "following-saturday": "Following Saturday",
+  };
+  function isPlanDay(day) { return PLAN_DAYS.indexOf(day) >= 0; }
+  function legacyDay(date) {
+    return U.isISODate(date) ? PLAN_DAYS[(U.parseDate(date).getDay() + 1) % 7] : "saturday";
+  }
 
   const MEAL_TYPES = ["breakfast", "lunch", "dinner"];
   const MEAL_LABEL = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner" };
@@ -25,7 +34,6 @@
 
   function defaultSettings() {
     return {
-      weekStartsOn: 1,
       servings: { breakfast: 2, lunch: 2, dinner: 4 },
       measurement: "us",
       groupBy: "category",
@@ -59,7 +67,6 @@
     const order = arr(o.categoryOrder).filter((c) => GROCERY_CATEGORIES.indexOf(c) >= 0);
     GROCERY_CATEGORIES.forEach((c) => { if (order.indexOf(c) < 0) order.push(c); });
     return {
-      weekStartsOn: [0, 1, 6].indexOf(+o.weekStartsOn) >= 0 ? +o.weekStartsOn : d.weekStartsOn,
       servings: {
         breakfast: U.clamp(Math.round(posNum(sv.breakfast, d.servings.breakfast)), 1, 50),
         lunch: U.clamp(Math.round(posNum(sv.lunch, d.servings.lunch)), 1, 50),
@@ -132,7 +139,6 @@
     const now = new Date().toISOString();
     return {
       id: id(o.id),
-      weekStart: U.isISODate(o.weekStart) ? o.weekStart : U.todayISO(),
       name: U.str(o.name, 80),
       notes: U.str(o.notes, 1000),
       createdAt: ts(o.createdAt) || now,
@@ -143,7 +149,7 @@
     const o = obj(x);
     return {
       id: id(o.id),
-      date: U.isISODate(o.date) ? o.date : U.todayISO(),
+      day: isPlanDay(o.day) ? o.day : legacyDay(o.date),
       meal: oneOf(o.meal, MEAL_TYPES, "dinner"),
       recipeId: typeof o.recipeId === "string" && o.recipeId ? o.recipeId : null,
       title: U.str(o.title, 160),
@@ -169,7 +175,7 @@
   }
   function normalizeSource(s) {
     const o = obj(s);
-    return { mealId: U.str(o.mealId, 40), recipeId: U.str(o.recipeId, 40), recipe: U.str(o.recipe, 160), date: U.isISODate(o.date) ? o.date : "", meal: oneOf(o.meal, MEAL_TYPES, "") };
+    return { mealId: U.str(o.mealId, 40), recipeId: U.str(o.recipeId, 40), recipe: U.str(o.recipe, 160), day: isPlanDay(o.day) ? o.day : legacyDay(o.date), meal: oneOf(o.meal, MEAL_TYPES, "") };
   }
   function normalizeItem(x, i) {
     const o = obj(x);
@@ -230,7 +236,7 @@
     };
   }
 
-  // Normalizes a whole db and repairs relationships (dangling ids, duplicate menus per week).
+  // Legacy dated menus become one reusable plan; all meal assignments and shopping items are retained.
   function normalizeDb(raw) {
     const o = obj(raw);
     const db = {
@@ -247,8 +253,19 @@
     };
     const dedupe = (list) => { const seen = new Set(); return list.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true))); };
     ["recipes", "menus", "meals", "lists", "items", "ingredients", "pantry"].forEach((k) => { db[k] = dedupe(db[k]); });
-    const weeks = new Set();
-    db.menus = db.menus.filter((m) => (weeks.has(m.weekStart) ? false : (weeks.add(m.weekStart), true)));
+    if (!db.menus.length && db.meals.length) db.menus.push(normalizeMenu({}));
+    const menu = db.menus[0];
+    const previousMenuIds = new Set(db.menus.map((m) => m.id));
+    db.lists.forEach((l) => { if (menu && previousMenuIds.has(l.menuId)) l.menuId = menu.id; });
+    db.menus = menu ? [menu] : [];
+    if (+o.schemaVersion < SCHEMA_VERSION || o.schemaVersion === undefined) {
+      const slots = new Map();
+      db.meals.forEach((m) => {
+        const key = m.day + ":" + m.meal;
+        m.sortOrder = slots.get(key) || 0;
+        slots.set(key, m.sortOrder + 1);
+      });
+    }
     const recipeIds = new Set(db.recipes.map((r) => r.id));
     const ingIds = new Set(db.ingredients.map((g) => g.id));
     const menuIds = new Set(db.menus.map((m) => m.id));
@@ -265,7 +282,7 @@
   }
 
   V.model = {
-    SCHEMA_VERSION, MEAL_TYPES, MEAL_LABEL, MEAL_ICON, RECIPE_CATEGORIES, CATEGORY_LABEL, CATEGORY_ICON,
+    SCHEMA_VERSION, PLAN_DAYS, DAY_LABEL, isPlanDay, legacyDay, MEAL_TYPES, MEAL_LABEL, MEAL_ICON, RECIPE_CATEGORIES, CATEGORY_LABEL, CATEGORY_ICON,
     DIFFICULTIES, DIFFICULTY_LABEL, GROCERY_CATEGORIES, GROCERY_LABEL, GROCERY_ICON,
     defaultSettings, emptyDb, normalizeSettings, normalizeRecipe, normalizeRecipeIngredient, normalizeMenu, normalizeMeal,
     normalizeList, normalizeItem, normalizeIngredient, normalizePantry, normalizeDb, totalTime,

@@ -21,7 +21,7 @@
 
   // =================== Recipe editor ===================
   let draft = null;
-  let afterSave = null; // { date, meal, replaceId } when creating from the picker
+  let afterSave = null; // { day, meal, replaceId } when creating from the picker
 
   function blankIng() { return { id: null, qtyText: "", unit: "", name: "", prep: "", group: "", optional: false, ingredientId: null }; }
   function openRecipeEditor(id, opts) {
@@ -208,8 +208,8 @@
     if (afterSave) {
       const a = afterSave;
       afterSave = null;
-      const m = H.attempt(() => (a.replaceId ? S.updateMeal(a.replaceId, { recipeId: r.id }) : S.addMeal({ date: a.date, meal: a.meal, recipeId: r.id })));
-      if (m.ok) H.toast(`Saved and added to ${U.fmtWeekday(a.date)} ${M.MEAL_LABEL[a.meal].toLowerCase()}.`);
+      const m = H.attempt(() => (a.replaceId ? S.updateMeal(a.replaceId, { recipeId: r.id }) : S.addMeal({ day: a.day, meal: a.meal, recipeId: r.id })));
+      if (m.ok) H.toast(`Saved and added to ${M.DAY_LABEL[a.day]} ${M.MEAL_LABEL[a.meal].toLowerCase()}.`);
       return;
     }
     H.toast(isNew ? "Recipe saved." : "Changes saved.");
@@ -218,8 +218,8 @@
 
   // =================== Recipe picker ===================
   let picker = null;
-  function openPicker(date, meal, replaceId) {
-    picker = { date, meal, replaceId: replaceId || null, tab: "suggested", q: "" };
+  function openPicker(day, meal, replaceId) {
+    picker = { day, meal, replaceId: replaceId || null, tab: "suggested", q: "" };
     el.pickerSearch.value = "";
     el.pickerNote.value = "";
     el.pickerTitle.textContent = replaceId ? "Replace recipe" : "Add a meal";
@@ -229,8 +229,8 @@
   }
   function renderPickerSlot() {
     el.pickerSlot.innerHTML = picker.replaceId
-      ? `Pick a new recipe for <strong>${esc(U.fmtDate(picker.date, { weekday: "long", month: "short", day: "numeric" }))} · ${M.MEAL_LABEL[picker.meal]}</strong>.`
-      : `<div class="form__row"><label class="field"><span class="field__label">Day</span><input class="field__input field__input--sm" type="date" id="pickerDate" value="${picker.date}" /></label>
+      ? `Pick a new recipe for <strong>${M.DAY_LABEL[picker.day]} · ${M.MEAL_LABEL[picker.meal]}</strong>.`
+      : `<div class="form__row"><label class="field"><span class="field__label">Day</span><select class="field__input field__input--sm" id="pickerDay">${W.dayOptions(picker.day)}</select></label>
          <label class="field"><span class="field__label">Meal</span><select class="field__input field__input--sm" id="pickerMeal">${M.MEAL_TYPES.map((t) => `<option value="${t}"${t === picker.meal ? " selected" : ""}>${M.MEAL_LABEL[t]}</option>`).join("")}</select></label></div>`;
   }
   function pickerRecipes() {
@@ -259,14 +259,14 @@
   }
   function pickRecipe(recipeId) {
     const p = picker;
-    const res = H.attempt(() => (p.replaceId ? S.updateMeal(p.replaceId, { recipeId }) : S.addMeal({ date: p.date, meal: p.meal, recipeId })));
+    const res = H.attempt(() => (p.replaceId ? S.updateMeal(p.replaceId, { recipeId }) : S.addMeal({ day: p.day, meal: p.meal, recipeId })));
     if (!res.ok) return;
     H.closeModal("pickerModal");
     const r = S.getDb().recipes.find((x) => x.id === recipeId);
     if (p.replaceId) H.toast("Replaced with " + r.name + ".");
     else {
       const id = res.value.id;
-      H.toast(`${r.name} → ${U.fmtWeekday(p.date)} ${M.MEAL_LABEL[p.meal].toLowerCase()}`, { label: "Undo", run: () => H.attempt(() => S.removeMeal(id)) });
+      H.toast(`${r.name} → ${M.DAY_LABEL[p.day]} ${M.MEAL_LABEL[p.meal].toLowerCase()}`, { label: "Undo", run: () => H.attempt(() => S.removeMeal(id)) });
     }
   }
   function addPickerNote(e) {
@@ -274,7 +274,7 @@
     const title = el.pickerNote.value.trim();
     if (!title) { el.pickerNote.focus(); return; }
     const p = picker;
-    const res = H.attempt(() => (p.replaceId ? S.updateMeal(p.replaceId, { recipeId: null, title }) : S.addMeal({ date: p.date, meal: p.meal, title })));
+    const res = H.attempt(() => (p.replaceId ? S.updateMeal(p.replaceId, { recipeId: null, title }) : S.addMeal({ day: p.day, meal: p.meal, title })));
     if (res.ok) { H.closeModal("pickerModal"); H.toast("Added \"" + title + "\"."); }
   }
 
@@ -286,7 +286,7 @@
     if (!m) return;
     mealId = id;
     const r = m.recipeId && db.recipes.find((x) => x.id === m.recipeId);
-    el.mealTitle.textContent = U.fmtDate(m.date, { weekday: "long", month: "short", day: "numeric" }) + " · " + M.MEAL_LABEL[m.meal];
+    el.mealTitle.textContent = M.DAY_LABEL[m.day] + " · " + M.MEAL_LABEL[m.meal];
     el.mHead.innerHTML = r
       ? `${W.thumb(r, "lg")}<div><div class="meal-head__name">${esc(r.name)}</div><div class="meal-head__meta">Recipe serves ${esc(Un.formatQty(r.servings, ""))}${M.totalTime(r) ? " · " + U.fmtMinutes(M.totalTime(r)) : ""}${r.archived ? " · archived" : ""}</div></div>`
       : `<span class="thumb thumb--lg">📝</span><div><div class="meal-head__name">${esc(m.title)}</div><div class="meal-head__meta">A note, not a recipe — nothing is added to the shopping list.</div></div>`;
@@ -296,7 +296,7 @@
     el.mServings.value = m.servings;
     updateServingsHint(r);
     el.mNote.value = m.note;
-    el.mDate.value = m.date;
+    el.mDay.innerHTML = W.dayOptions(m.day);
     el.mMeal.value = m.meal;
     el.mDone.checked = m.done;
     el.mView.hidden = !r;
@@ -315,7 +315,7 @@
   function saveMeal(e) {
     e.preventDefault();
     const r = mealRecipe();
-    const patch = { note: el.mNote.value, done: el.mDone.checked, date: el.mDate.value, meal: el.mMeal.value };
+    const patch = { note: el.mNote.value, done: el.mDone.checked, day: el.mDay.value, meal: el.mMeal.value };
     if (r) patch.servings = el.mServings.value; else patch.title = el.mTitle.value;
     const res = H.attempt(() => S.updateMeal(mealId, patch), el.mError);
     if (res.ok) { H.closeModal("mealModal"); H.toast("Meal updated."); }
@@ -328,8 +328,8 @@
     H.toast("Meal removed.", { label: "Undo", run: () => { S.getDb().meals.push(m); S.commit(); } });
   }
   function copyMealFromModal() {
-    const res = H.attempt(() => S.copyMeal(mealId, el.mDate.value, el.mMeal.value), el.mError);
-    if (res.ok) { H.closeModal("mealModal"); H.toast(`Copied to ${U.fmtWeekday(el.mDate.value)} ${M.MEAL_LABEL[el.mMeal.value].toLowerCase()}.`); }
+    const res = H.attempt(() => S.copyMeal(mealId, el.mDay.value, el.mMeal.value), el.mError);
+    if (res.ok) { H.closeModal("mealModal"); H.toast(`Copied to ${M.DAY_LABEL[el.mDay.value]} ${M.MEAL_LABEL[el.mMeal.value].toLowerCase()}.`); }
   }
 
   // =================== Shopping item dialog ===================
@@ -354,7 +354,7 @@
     const info = [];
     if (!it.manual) {
       info.push("Menu needs: <strong>" + esc(Un.formatAmount(it.genQty, it.genUnit) || "to taste") + "</strong>" + (it.toTaste && it.genQty != null ? " (plus some to taste)" : ""));
-      if (it.sources.length) info.push("For: <ul>" + it.sources.map((s) => `<li>${esc(s.recipe)} — ${esc(U.fmtWeekday(s.date, true))} ${M.MEAL_LABEL[s.meal] ? M.MEAL_LABEL[s.meal].toLowerCase() : ""}</li>`).join("") + "</ul>");
+      if (it.sources.length) info.push("For: <ul>" + it.sources.map((s) => `<li>${esc(s.recipe)} — ${M.DAY_LABEL[s.day]} ${M.MEAL_LABEL[s.meal] ? M.MEAL_LABEL[s.meal].toLowerCase() : ""}</li>`).join("") + "</ul>");
       if (it.stale) info.push("No meal on the menu needs this any more.");
     }
     if (it.change) info.push(esc(it.change));
@@ -473,14 +473,14 @@
     el.pickerTabs.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) { picker.tab = b.dataset.tab; renderPicker(); } });
     el.pickerList.addEventListener("click", (e) => { const b = e.target.closest("[data-pick]"); if (b) pickRecipe(b.dataset.pick); });
     el.pickerSlot.addEventListener("change", (e) => {
-      if (e.target.id === "pickerDate" && U.isISODate(e.target.value)) picker.date = e.target.value;
+      if (e.target.id === "pickerDay" && M.isPlanDay(e.target.value)) picker.day = e.target.value;
       if (e.target.id === "pickerMeal") { picker.meal = e.target.value; renderPicker(); }
     });
     el.pickerNoteForm.addEventListener("submit", addPickerNote);
     el.pickerNewRecipe.addEventListener("click", () => {
       const p = picker;
       H.closeModal("pickerModal");
-      openRecipeEditor(null, { category: p.meal, name: el.pickerSearch.value.trim(), afterSave: { date: p.date, meal: p.meal, replaceId: p.replaceId } });
+      openRecipeEditor(null, { category: p.meal, name: el.pickerSearch.value.trim(), afterSave: { day: p.day, meal: p.meal, replaceId: p.replaceId } });
     });
 
     // Meal dialog
@@ -498,7 +498,7 @@
     el.mReplace.addEventListener("click", () => {
       const m = S.getDb().meals.find((x) => x.id === mealId);
       H.closeModal("mealModal");
-      if (m) openPicker(m.date, m.meal, m.id);
+      if (m) openPicker(m.day, m.meal, m.id);
     });
     el.mView.addEventListener("click", () => {
       const m = S.getDb().meals.find((x) => x.id === mealId);

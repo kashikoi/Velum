@@ -16,22 +16,17 @@
     return recipe.ingredients.map((g) => Object.assign({}, g, { qty: g.qty == null ? null : g.qty * f }));
   }
 
-  // ---------- Weeks ----------
-  function weekOf(db, iso) { return U.weekStartFor(iso, db.settings.weekStartsOn); }
-  function menuForWeek(db, weekStart) { return db.menus.find((m) => m.weekStart === weekStart) || null; }
-  function mealsInRange(db, startIso, days) {
-    const end = U.addDays(startIso, days);
-    return db.meals.filter((m) => m.date >= startIso && m.date < end);
+  // ---------- Reusable plan ----------
+  function menuForPlan(db) { return db.menus[0] || null; }
+  function slotMeals(db, day, meal) {
+    return db.meals.filter((m) => m.day === day && m.meal === meal).sort((a, b) => a.sortOrder - b.sortOrder);
   }
-  function mealsForWeek(db, weekStart) { return mealsInRange(db, weekStart, 7); }
-  function slotMeals(db, date, meal) {
-    return db.meals.filter((m) => m.date === date && m.meal === meal).sort((a, b) => a.sortOrder - b.sortOrder);
-  }
-  function weekStats(db, weekStart) {
-    const meals = mealsForWeek(db, weekStart);
+  function planStats(db) {
+    const meals = db.meals;
     let filled = 0;
-    U.weekDates(weekStart).forEach((d) => M.MEAL_TYPES.forEach((t) => { if (meals.some((m) => m.date === d && m.meal === t)) filled++; }));
-    return { meals: meals.length, filled, slots: 21, unplanned: 21 - filled, done: meals.filter((m) => m.done).length };
+    M.PLAN_DAYS.forEach((d) => M.MEAL_TYPES.forEach((t) => { if (meals.some((m) => m.day === d && m.meal === t)) filled++; }));
+    const slots = M.PLAN_DAYS.length * M.MEAL_TYPES.length;
+    return { meals: meals.length, filled, slots, unplanned: slots - filled, done: meals.filter((m) => m.done).length };
   }
 
   // ---------- Ingredient identity ----------
@@ -55,13 +50,13 @@
   }
 
   // ---------- Requirements ----------
-  // Every scaled ingredient line needed by the meals in [weekStart, +7d).
-  function requirementsForWeek(db, weekStart, opts) {
+  // Every scaled ingredient line needed by all eight days of the reusable plan.
+  function requirementsForPlan(db, opts) {
     const o = opts || {};
     const includeOptional = o.includeOptional !== undefined ? o.includeOptional : db.settings.includeOptional;
     const recipes = new Map(db.recipes.map((r) => [r.id, r]));
     const out = [];
-    mealsForWeek(db, weekStart).forEach((meal) => {
+    db.meals.forEach((meal) => {
       const r = meal.recipeId && recipes.get(meal.recipeId);
       if (!r) return;
       scaledIngredients(r, meal.servings).forEach((g) => {
@@ -69,7 +64,7 @@
         if (Un.isNeverShop(g.name)) return;
         out.push({
           name: g.name, qty: g.qty, unit: g.unit, ingredientId: g.ingredientId, optional: g.optional,
-          source: { mealId: meal.id, recipeId: r.id, recipe: r.name, date: meal.date, meal: meal.meal },
+          source: { mealId: meal.id, recipeId: r.id, recipe: r.name, day: meal.day, meal: meal.meal },
         });
       });
     });
@@ -195,8 +190,8 @@
     return da === db;
   }
 
-  function generateForWeek(db, weekStart, opts) {
-    const lines = requirementsForWeek(db, weekStart, opts);
+  function generateForPlan(db, opts) {
+    const lines = requirementsForPlan(db, opts);
     const entries = aggregate(lines, db.ingredients, db.settings.measurement);
     return applyPantry(entries, db.pantry, db.ingredients, db.settings.pantryMode);
   }
@@ -332,7 +327,7 @@
   }
 
   V.planner = {
-    scaleFactor, scaledIngredients, weekOf, menuForWeek, mealsInRange, mealsForWeek, slotMeals, weekStats,
-    catalogIndex, resolveIngredient, nameKeyFor, requirementsForWeek, aggregate, applyPantry, generateForWeek, signature, reconcile,
+    scaleFactor, scaledIngredients,     menuForPlan, slotMeals, planStats,
+    catalogIndex, resolveIngredient, nameKeyFor, requirementsForPlan, aggregate, applyPantry, generateForPlan, signature, reconcile,
   };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);

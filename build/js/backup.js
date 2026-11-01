@@ -48,7 +48,6 @@
   function openSettings() {
     const s = S.getDb().settings;
     H.updateThemePicker();
-    el.sWeekStart.value = String(s.weekStartsOn);
     el.sMeasure.value = s.measurement;
     el.sServB.value = s.servings.breakfast;
     el.sServL.value = s.servings.lunch;
@@ -72,7 +71,7 @@
   }
   function savePlanning() {
     H.attempt(() => S.updateSettings({
-      weekStartsOn: +el.sWeekStart.value, measurement: el.sMeasure.value,
+      measurement: el.sMeasure.value,
       servings: { breakfast: el.sServB.value, lunch: el.sServL.value, dinner: el.sServD.value },
     }));
   }

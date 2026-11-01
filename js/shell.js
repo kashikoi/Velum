@@ -7,7 +7,7 @@
   const W = V.views;
   const esc = U.escapeHtml;
 
-  const APP_VERSION = "2026.11.01.1";
+  const APP_VERSION = "2026.11.01.2";
   const THEME_KEY = "velum_cloud_theme";
   const ACTIVE_THEME_KEY = "velum_cloud_active_theme";
   const THEMES = ["day", "twilight", "night"];
@@ -154,7 +154,7 @@
   }
 
   // ---------- Routing ----------
-  // #/  #/menu[/<date>]  #/day/<date>  #/recipes  #/recipe/<id>[?meal=&cook=1]  #/shopping[/<listId>]  #/pantry
+  // #/  #/menu  #/day/<day-key>  #/recipes  #/recipe/<id>[?meal=&cook=1]  #/shopping[/<listId>]  #/pantry
   function parseRoute() {
     const raw = location.hash.replace(/^#\/?/, "");
     const [path, qs] = raw.split("?");
@@ -162,15 +162,18 @@
     const query = {};
     (qs || "").split("&").filter(Boolean).forEach((kv) => { const [k, v] = kv.split("="); query[decodeURIComponent(k)] = decodeURIComponent(v || ""); });
     const name = ["menu", "day", "recipes", "recipe", "shopping", "pantry"].indexOf(parts[0]) >= 0 ? parts[0] : "home";
-    return { name, arg: parts[1] || null, query };
+    let arg = parts[1] || null;
+    if (name === "menu") arg = null;
+    if (name === "day" && !V.model.isPlanDay(arg)) arg = U.isISODate(arg) ? V.model.legacyDay(arg) : "saturday";
+    return { name, arg, query };
   }
   function navigate(hash) {
     if (location.hash === hash) render();
     else location.hash = hash;
   }
   const NAV = [
-    { id: "home", icon: "🏠", label: "This week", short: "Home", href: "#/" },
-    { id: "menu", icon: "🗓️", label: "Weekly menu", short: "Menu", href: "#/menu" },
+    { id: "home", icon: "🏠", label: "Overview", short: "Home", href: "#/" },
+    { id: "menu", icon: "🗓️", label: "Menu plan", short: "Menu", href: "#/menu" },
     { id: "recipes", icon: "📖", label: "Recipes", short: "Recipes", href: "#/recipes" },
     { id: "shopping", icon: "🛒", label: "Shopping", short: "Shop", href: "#/shopping" },
     { id: "pantry", icon: "🧺", label: "Ingredients & pantry", short: "Pantry", href: "#/pantry" },
@@ -182,9 +185,9 @@
     if (r.name === "shopping" && r.arg) return db.lists.find((l) => l.id === r.arg) || null;
     const remembered = ui.listId && db.lists.find((l) => l.id === ui.listId);
     if (remembered) return remembered;
-    const menu = P.menuForWeek(db, P.weekOf(db, U.todayISO()));
-    const thisWeek = menu && S.listForMenu(menu.id);
-    if (thisWeek) return thisWeek;
+    const menu = P.menuForPlan(db);
+    const planList = menu && S.listForMenu(menu.id);
+    if (planList) return planList;
     const active = db.lists.filter((l) => l.status === "active").sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return active[0] || db.lists.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] || null;
   }
@@ -194,12 +197,11 @@
   }
 
   function renderRail(db) {
-    const ws = P.weekOf(db, U.todayISO());
-    const stats = P.weekStats(db, ws);
+    const stats = P.planStats(db);
     const list = currentList(db);
     const left = remaining(db, list);
     el.railSummary.innerHTML =
-      `<div class="stat-mini"><span class="stat-mini__val">${stats.filled}/21</span><span class="stat-mini__lbl">Planned</span></div>` +
+      `<div class="stat-mini"><span class="stat-mini__val">${stats.filled}/${stats.slots}</span><span class="stat-mini__lbl">Planned</span></div>` +
       `<div class="stat-mini"><span class="stat-mini__val">${db.recipes.filter((r) => !r.archived).length}</span><span class="stat-mini__lbl">Recipes</span></div>` +
       `<div class="stat-mini${left ? " is-alert" : ""}"><span class="stat-mini__val">${left}</span><span class="stat-mini__lbl">To buy</span></div>`;
     const section = navSection(ui.route.name);
@@ -224,22 +226,18 @@
     if (r.name === "recipe") {
       const rec = db.recipes.find((x) => x.id === r.arg);
       if (rec) html += `<span class="crumb__sep">›</span><span class="crumb__item is-current">${esc(rec.name)}</span>`;
-    } else if (r.name === "day" && U.isISODate(r.arg)) {
-      html += `<span class="crumb__sep">›</span><span class="crumb__item is-current">${esc(U.fmtDate(r.arg, { weekday: "short", month: "short", day: "numeric" }))}</span>`;
+    } else if (r.name === "day") {
+      html += `<span class="crumb__sep">›</span><span class="crumb__item is-current">${V.model.DAY_LABEL[r.arg]}</span>`;
     }
     el.crumb.innerHTML = html;
   }
 
   function canvasHtml(db) {
     const r = ui.route;
-    const today = U.todayISO();
     document.documentElement.classList.toggle("cooking", ui.cooking && r.name === "recipe");
     switch (r.name) {
-      case "menu": {
-        const ws = P.weekOf(db, U.isISODate(r.arg) ? r.arg : today);
-        return W.menuWeek(db, ui, ws);
-      }
-      case "day": return W.menuDay(db, ui, U.isISODate(r.arg) ? r.arg : today);
+      case "menu": return W.menuPlan(db, ui);
+      case "day": return W.menuDay(db, ui, r.arg);
       case "recipes": return W.library(db, ui);
       case "recipe": {
         const rec = db.recipes.find((x) => x.id === r.arg);

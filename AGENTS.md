@@ -4,7 +4,7 @@ Checked-in snapshot of working context for the Velum app. If you're an agent pic
 this up in a new session, read this first.
 
 ## What this is
-- A personal, local-first **meal planner**: recipe library → weekly breakfast/lunch/dinner menu →
+- A personal, local-first **meal planner**: recipe library → reusable eight-day breakfast/lunch/dinner plan →
   auto-consolidated shopping list → optional pantry. Part of the kashikoi cloud-themed app suite
   (Cumulus, Nimbus, Cirrus, Stratus, Anvil, Arcus, Virga). Intended repo: github.com/kashikoi/Velum,
   Pages: https://kashikoi.github.io/Velum/ (served from `main` /).
@@ -23,17 +23,19 @@ this up in a new session, read this first.
   and call `S.commit()`. Validation failures throw `store.ValidationError`; UI uses `shell.attempt()`.
 - Rendering: `views.js` pure string templates with `escapeHtml()` on every user string. Clicks are
   delegated on `#canvas` via `data-act`, changes via `data-change`, input via `data-input`, forms via
-  `data-form`. Hash routes: `#/`, `#/menu/<date>`, `#/day/<date>`, `#/recipes`, `#/recipe/<id>?meal=&cook=1`,
+  `data-form`. Hash routes: `#/`, `#/menu`, `#/day/<day-key>`, `#/recipes`, `#/recipe/<id>?meal=&cook=1`,
   `#/shopping/<listId>`, `#/pantry`. `shell.render()` restores focus/caret for inputs with an `id`.
-- Meals are keyed by **date + meal type**; menus are per-week metadata (`weekStart`). Changing the first
-  day of the week re-keys menus (`rekeyMenus`). Lists link to a menu by `menuId`.
+- Schema v2: meals use **day key + meal type**, with `model.PLAN_DAYS` in fixed order from `saturday`
+  through `following-saturday` (eight independent days, 24 slots). One reusable menu, no calendar dates,
+  week history, or automatic rollover. Lists link by `menuId`; shopping includes both Saturdays.
+  `normalizeDb()` migrates v1 dated meals by weekday and relinks old lists to the single plan.
 - `planner.aggregate()` is the single source of shopping math (see README "How the shopping list is
   calculated"). `planner.reconcile()` merges regenerated entries into existing items — keep its
   guarantees (manual items untouched; purchased kept unless need increased; `qtyEdited` kept; touched
   items become `stale` instead of being removed; `cleared` stays hidden).
 - Item `key` = `<i:catalogId | n:normalizedName>|<volume|mass|count:<unit>|taste>`. Don't change key
   shape without a migration — reconciliation matches on it.
-- Recipes referenced by meals are archived (`archived: true`), never erased. Photos can be shared by
+- Recipes referenced by planned meals are archived (`archived: true`), never erased. Photos can be shared by
   duplicated recipes: only delete via `editors.releaseImage()` (checks references).
 - Photos: IndexedDB (`images.js`), re-encoded JPEG ≤ 1000 px through canvas; cached in memory so views
   render synchronously. Never put photos in localStorage (shared origin quota).

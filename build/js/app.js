@@ -1,4 +1,4 @@
-/* Velum — application controller: canvas actions, drag & drop, week/list dialogs, keyboard, init.
+/* Velum — application controller: canvas actions, drag & drop, plan/list dialogs, keyboard, init.
    Business rules live in store/planner; rendering in views; this file only wires the UI to them. */
 (function (V) {
   "use strict";
@@ -16,32 +16,32 @@
   const ui = H.ui;
   const esc = U.escapeHtml;
 
-  // ---------- Week & day dialogs ----------
+  // ---------- Plan & day dialogs ----------
   function modeRadios(name) {
     return `<div class="field"><span class="field__label">If the target already has meals</span>
       <label class="check-row"><input type="radio" name="${name}" value="merge" checked /> <span>Add alongside them</span></label>
       <label class="check-row"><input type="radio" name="${name}" value="replace" /> <span>Replace them</span></label></div>`;
   }
-  function dayDialog(date) {
-    const n = S.getDb().meals.filter((m) => m.date === date).length;
+  function dayDialog(day) {
+    const n = S.getDb().meals.filter((m) => m.day === day).length;
     H.openDialog({
-      title: U.fmtDate(date, { weekday: "long", month: "long", day: "numeric" }),
+      title: M.DAY_LABEL[day],
       body: `<p class="field__hint">${n ? U.plural(n, "meal") + " planned." : "Nothing planned on this day yet."}</p>
-        ${n ? `<label class="field" style="margin-top:10px"><span class="field__label">Copy this day's meals to</span><input class="field__input" type="date" name="to" value="${U.addDays(date, 1)}" required /></label>${modeRadios("mode")}` : ""}`,
+        ${n ? `<label class="field" style="margin-top:10px"><span class="field__label">Copy this day's meals to</span><select class="field__input" name="to" required>${W.dayOptions(null, day)}</select></label>${modeRadios("mode")}` : ""}`,
       submit: n ? "Copy day" : null,
       extra: n ? `<button type="button" class="btn btn--danger form__actions-left" id="dlgClearDay">Clear this day</button>` : "",
       onOpen: () => {
         const b = $("dlgClearDay");
         if (b) b.addEventListener("click", () => {
-          const removed = S.getDb().meals.filter((m) => m.date === date);
-          S.clearDay(date);
+          const removed = S.getDb().meals.filter((m) => m.day === day);
+          S.clearDay(day);
           H.closeModal("dialogModal");
           H.toast("Cleared " + U.plural(removed.length, "meal") + ".", { label: "Undo", run: () => restoreMeals(removed) });
         });
       },
       onSubmit: (f) => {
-        const n2 = S.copyDay(date, f.elements.to.value, f.elements.mode.value);
-        H.toast("Copied " + U.plural(n2, "meal") + " to " + U.fmtDate(f.elements.to.value, { weekday: "long" }) + ".");
+        const n2 = S.copyDay(day, f.elements.to.value, f.elements.mode.value);
+        H.toast("Copied " + U.plural(n2, "meal") + " to " + M.DAY_LABEL[f.elements.to.value] + ".");
       },
     });
   }
@@ -51,86 +51,52 @@
     meals.forEach((m) => { if (!ids.has(m.id)) db.meals.push(m); });
     S.commit();
   }
-  function copyWeekDialog(ws) {
-    H.openDialog({
-      title: "Copy this week",
-      body: `<p class="field__hint">Copies every meal (with servings and notes) day-for-day. This week stays as it is.</p>
-        <label class="field" style="margin-top:10px"><span class="field__label">Copy to the week of</span><input class="field__input" type="date" name="to" value="${U.addDays(ws, 7)}" required /></label>${modeRadios("mode")}`,
-      submit: "Copy week",
-      onSubmit: (f) => {
-        const to = P.weekOf(S.getDb(), f.elements.to.value);
-        const n = S.copyWeek(ws, to, f.elements.mode.value);
-        H.toast("Copied " + U.plural(n, "meal") + ".", { label: "Go to week", run: () => H.navigate("#/menu/" + to) });
-      },
-    });
-  }
-  function reuseWeekDialog(ws) {
-    const db = S.getDb();
-    const past = db.menus.filter((m) => m.weekStart !== ws && P.mealsForWeek(db, m.weekStart).length)
-      .sort((a, b) => b.weekStart.localeCompare(a.weekStart)).slice(0, 12);
-    const opts = past.map((m) => `<option value="${m.weekStart}">${esc((m.name ? m.name + " — " : "") + U.fmtRange(m.weekStart, U.addDays(m.weekStart, 6)))} (${P.mealsForWeek(db, m.weekStart).length})</option>`).join("");
-    H.openDialog({
-      title: "Start from another week",
-      body: past.length
-        ? `<p class="field__hint">Duplicate a past (or future) week's menu into ${esc(U.fmtRange(ws, U.addDays(ws, 6)))}. The original week isn't changed.</p>
-          <label class="field" style="margin-top:10px"><span class="field__label">Week to copy from</span><select class="field__input" name="from">${opts}</select></label>${modeRadios("mode")}`
-        : `<p class="empty-note">There are no other weeks with meals yet.</p>`,
-      submit: past.length ? "Copy into this week" : null,
-      onSubmit: (f) => {
-        const n = S.copyWeek(f.elements.from.value, ws, f.elements.mode.value);
-        H.toast("Added " + U.plural(n, "meal") + " to this week.");
-      },
-    });
-  }
-  function clearWeek(ws) {
-    const removed = P.mealsForWeek(S.getDb(), ws);
+  function clearPlan() {
+    const removed = S.getDb().meals.slice();
     if (!removed.length) return;
-    if (!confirm("Remove all " + removed.length + " meals from " + U.fmtRange(ws, U.addDays(ws, 6)) + "?")) return;
-    S.clearWeek(ws);
-    H.toast("Week cleared.", { label: "Undo", run: () => restoreMeals(removed) });
+    if (!confirm("Remove all " + removed.length + " meals from your menu plan? Recipes and shopping lists are kept.")) return;
+    S.clearPlan();
+    H.toast("Plan cleared.", { label: "Undo", run: () => restoreMeals(removed) });
   }
   function planRecipeDialog(id) {
     const db = S.getDb();
     const r = db.recipes.find((x) => x.id === id);
     if (!r) return;
     const meal = M.MEAL_TYPES.find((t) => r.categories.indexOf(t) >= 0) || "dinner";
-    const date = nextOpenDate(meal);
+    const day = nextOpenDay(meal);
     H.openDialog({
       title: "Add “" + r.name + "” to the menu",
       body: `<div class="form__row form__row--3">
-          <label class="field"><span class="field__label">Day</span><input class="field__input" type="date" name="date" value="${date}" required /></label>
+          <label class="field"><span class="field__label">Day</span><select class="field__input" name="day" required>${W.dayOptions(day)}</select></label>
           <label class="field"><span class="field__label">Meal</span><select class="field__input" name="meal">${M.MEAL_TYPES.map((t) => `<option value="${t}"${t === meal ? " selected" : ""}>${M.MEAL_LABEL[t]}</option>`).join("")}</select></label>
           <label class="field"><span class="field__label">Servings</span><input class="field__input" type="number" min="0.25" step="any" name="servings" value="${ui.recipeServings.get(r.id) || db.settings.servings[meal]}" required /></label>
         </div><p class="field__hint" style="margin-top:8px">The recipe makes ${esc(Un.formatQty(r.servings, ""))}; ingredients scale for this meal only.</p>`,
       submit: "Add to menu",
       onSubmit: (f) => {
-        const m = S.addMeal({ recipeId: r.id, date: f.elements.date.value, meal: f.elements.meal.value, servings: f.elements.servings.value });
-        H.toast(`Added to ${U.fmtDate(m.date, { weekday: "long" })} ${M.MEAL_LABEL[m.meal].toLowerCase()}.`, { label: "View week", run: () => H.navigate("#/menu/" + P.weekOf(S.getDb(), m.date)) });
+        const m = S.addMeal({ recipeId: r.id, day: f.elements.day.value, meal: f.elements.meal.value, servings: f.elements.servings.value });
+        H.toast(`Added to ${M.DAY_LABEL[m.day]} ${M.MEAL_LABEL[m.meal].toLowerCase()}.`, { label: "View plan", run: () => H.navigate("#/menu") });
       },
     });
   }
-  function nextOpenDate(meal) {
+  function nextOpenDay(meal) {
     const db = S.getDb();
-    for (let i = 0; i < 14; i++) {
-      const d = U.addDays(U.todayISO(), i);
+    for (const d of M.PLAN_DAYS) {
       if (!P.slotMeals(db, d, meal).length) return d;
     }
-    return U.todayISO();
+    return "saturday";
   }
-  // Opens the picker on the next empty slot, starting today.
+  // Opens the picker on the next empty slot, starting with the first Saturday.
   function planNext() {
     const db = S.getDb();
-    const today = U.todayISO();
-    for (let i = 0; i < 14; i++) {
-      const d = U.addDays(today, i);
+    for (const d of M.PLAN_DAYS) {
       for (const t of M.MEAL_TYPES) if (!P.slotMeals(db, d, t).length) return E.openPicker(d, t);
     }
-    E.openPicker(today, "dinner");
+    E.openPicker("saturday", "dinner");
   }
 
   // ---------- Shopping list dialogs ----------
-  function createWeekList(ws) {
-    const res = H.attempt(() => S.createListForWeek(ws));
+  function createPlanList() {
+    const res = H.attempt(() => S.createListForPlan());
     if (!res.ok) return;
     const { list, created } = res.value;
     ui.listId = list.id;
@@ -189,14 +155,12 @@
       case "new-recipe": return E.openRecipeEditor(null);
       case "starter": return B.addStarters();
       case "plan-meal": return planNext();
-      case "add-slot": return E.openPicker(d.date, d.meal);
+      case "add-slot": return E.openPicker(d.day, d.meal);
       case "open-meal": return E.openMealModal(d.id);
       case "toggle-done": { const r = H.attempt(() => S.toggleMealDone(d.id)); if (r.ok && r.value) H.toast("Nice — marked as made."); return; }
-      case "day-menu": return dayDialog(d.date);
-      case "copy-week": return copyWeekDialog(d.week);
-      case "reuse-week": return reuseWeekDialog(d.week);
-      case "clear-week": return clearWeek(d.week);
-      case "create-week-list": return createWeekList(d.week);
+      case "day-menu": return dayDialog(d.day);
+      case "clear-plan": return clearPlan();
+      case "create-plan-list": return createPlanList();
       // Library
       case "lib-cat": ui.lib.cat = d.val; return H.render();
       case "lib-fav": ui.lib.fav = !ui.lib.fav; return H.render();
@@ -264,8 +228,8 @@
     if (!d.change) return;
     const db = S.getDb();
     switch (d.change) {
-      case "jump-date": if (U.isISODate(t.value)) H.navigate(d.mode === "day" ? "#/day/" + t.value : "#/menu/" + P.weekOf(db, t.value)); return;
-      case "menu-name": H.attempt(() => S.renameMenu(d.week, t.value)); return;
+      case "pick-day": if (M.isPlanDay(t.value)) H.navigate("#/day/" + t.value); return;
+      case "menu-name": H.attempt(() => S.renameMenu(t.value)); return;
       case "lib-sort": ui.lib.sort = t.value; return H.render();
       case "lib-cuisine": ui.lib.cuisine = t.value; return H.render();
       case "lib-tag": ui.lib.tag = t.value; return H.render();
@@ -329,7 +293,7 @@
       const id = dragId;
       dragId = null;
       const copy = e.altKey || e.ctrlKey;
-      const res = H.attempt(() => (copy ? S.copyMeal(id, cell.dataset.dropDate, cell.dataset.dropMeal) : S.moveMeal(id, cell.dataset.dropDate, cell.dataset.dropMeal)));
+      const res = H.attempt(() => (copy ? S.copyMeal(id, cell.dataset.dropDay, cell.dataset.dropMeal) : S.moveMeal(id, cell.dataset.dropDay, cell.dataset.dropMeal)));
       if (res.ok) H.toast(copy ? "Meal copied." : "Meal moved.");
     });
     el.canvas.addEventListener("dragend", () => {

@@ -61,41 +61,36 @@
       </button>
     </div>`;
   }
-  function slotAdd(date, meal, label) {
-    return `<button type="button" class="slot-add" data-act="add-slot" data-date="${date}" data-meal="${meal}" aria-label="Add ${M.MEAL_LABEL[meal]} on ${esc(U.fmtDate(date, { weekday: "long", month: "long", day: "numeric" }))}">${label || "+ Add"}</button>`;
+  function dayOptions(selected, exclude) {
+    return M.PLAN_DAYS.filter((day) => day !== exclude).map((day) =>
+      `<option value="${day}"${day === selected ? " selected" : ""}>${M.DAY_LABEL[day]}</option>`).join("");
+  }
+  function slotAdd(day, meal, label) {
+    return `<button type="button" class="slot-add" data-act="add-slot" data-day="${day}" data-meal="${meal}" aria-label="Add ${M.MEAL_LABEL[meal]} on ${M.DAY_LABEL[day]}">${label || "+ Add"}</button>`;
   }
 
   // ---------- Home ----------
   function home(db, ui) {
-    const today = U.todayISO();
-    const ws = P.weekOf(db, today);
-    const menu = P.menuForWeek(db, ws);
-    const stats = P.weekStats(db, ws);
+    const menu = P.menuForPlan(db);
+    const stats = P.planStats(db);
     const recipes = recipeMap(db);
     const hasAny = db.recipes.length || db.meals.length;
     if (!hasAny) return welcome();
-    const dayName = U.fmtDate(today, { weekday: "long", month: "long", day: "numeric" });
-
-    const todayHtml = M.MEAL_TYPES.map((t) => {
-      const meals = P.slotMeals(db, today, t);
-      return `<div class="today-meal"><span class="today-meal__label">${M.MEAL_ICON[t]} ${M.MEAL_LABEL[t]}</span><div class="today-meal__body">` +
-        (meals.length ? meals.map((m) => mealChip(m, recipes)).join("") : slotAdd(today, t, "+ Plan " + M.MEAL_LABEL[t].toLowerCase())) + `</div></div>`;
-    }).join("");
-
-    const upcoming = db.meals.filter((m) => m.date > today && m.date <= U.addDays(today, 6) && m.recipeId)
-      .sort((a, b) => (a.date + M.MEAL_TYPES.indexOf(a.meal)).localeCompare(b.date + M.MEAL_TYPES.indexOf(b.meal))).slice(0, 6);
+    const upcoming = db.meals.filter((m) => m.recipeId)
+      .sort((a, b) => M.PLAN_DAYS.indexOf(a.day) - M.PLAN_DAYS.indexOf(b.day) ||
+        M.MEAL_TYPES.indexOf(a.meal) - M.MEAL_TYPES.indexOf(b.meal) || a.sortOrder - b.sortOrder).slice(0, 8);
     const upcomingHtml = upcoming.length ? `<div class="upcoming">${upcoming.map((m) => {
       const r = recipes.get(m.recipeId);
       return `<a class="up-card" href="#/recipe/${esc(r.id)}?meal=${esc(m.id)}"><span class="up-card__img">${imgTag(r, "") || placeholder(r)}</span>
-        <span class="up-card__body"><span class="up-card__when">${esc(U.fmtWeekday(m.date, true))} · ${M.MEAL_LABEL[m.meal]}</span><span class="up-card__name">${esc(r.name)}</span></span></a>`;
-    }).join("")}</div>` : `<p class="empty-note">Nothing planned for the next few days yet.</p>`;
+        <span class="up-card__body"><span class="up-card__when">${M.DAY_LABEL[m.day]} · ${M.MEAL_LABEL[m.meal]}</span><span class="up-card__name">${esc(r.name)}</span></span></a>`;
+    }).join("")}</div>` : `<p class="empty-note">No recipes in your plan yet.</p>`;
 
-    const strip = U.weekDates(ws).map((d) => {
+    const strip = M.PLAN_DAYS.map((d) => {
       const dots = M.MEAL_TYPES.map((t) => {
         const ms = P.slotMeals(db, d, t);
         return `<span class="dot${ms.length ? (ms.every((m) => m.done) ? " is-done" : " is-on") : ""}" title="${M.MEAL_LABEL[t]}"></span>`;
       }).join("");
-      return `<a class="week-strip__day${d === today ? " is-today" : ""}" href="#/day/${d}"><span class="week-strip__name">${esc(U.fmtWeekday(d))}</span><span class="week-strip__num">${U.parseDate(d).getDate()}</span><span class="dots">${dots}</span></a>`;
+      return `<a class="week-strip__day" href="#/day/${d}"><span class="week-strip__name">${M.DAY_LABEL[d]}</span><span class="dots">${dots}</span></a>`;
     }).join("");
 
     const list = menu && S.listForMenu(menu.id);
@@ -110,24 +105,23 @@
         <a class="btn btn--ghost" href="#/shopping/${esc(list.id)}">Open shopping list</a></div>`;
     } else {
       shopHtml = `<p class="empty-note">${stats.meals ? "Your menu is ready to shop for." : "Plan a few meals and Velum will add up what to buy."}</p>` +
-        (stats.meals ? `<button type="button" class="btn btn--beacon" data-act="create-week-list" data-week="${ws}">🛒 Build this week's list</button>` : "");
+        (stats.meals ? `<button type="button" class="btn btn--beacon" data-act="create-plan-list">🛒 Build menu shopping list</button>` : "");
     }
 
     return `
       <section class="hero">
         <div class="hero__top">
-          <div><p class="hero__eyebrow">This week · ${esc(U.fmtRange(ws, U.addDays(ws, 6)))}</p>
-          <h2 class="hero__title">${esc((menu && menu.name) || dayName)}</h2></div>
-          <a class="btn btn--beacon" href="#/menu/${ws}">Open weekly menu</a>
+          <div><p class="hero__eyebrow">Saturday through the following Saturday</p>
+          <h2 class="hero__title">${esc((menu && menu.name) || "Your menu plan")}</h2></div>
+          <a class="btn btn--beacon" href="#/menu">Open menu plan</a>
         </div>
-        <div class="hero__meta"><span><strong>${stats.filled}</strong> of 21 meals planned</span><span><strong>${stats.unplanned}</strong> open slots</span><span><strong>${stats.done}</strong> made so far</span></div>
-        ${bar(stats.filled / 21)}
+        <div class="hero__meta"><span><strong>${stats.filled}</strong> of ${stats.slots} meals planned</span><span><strong>${stats.unplanned}</strong> open slots</span><span><strong>${stats.done}</strong> made so far</span></div>
+        ${bar(stats.filled / stats.slots)}
         <div class="week-strip">${strip}</div>
       </section>
       <div class="home-grid">
         <div class="home-col">
-          <section><h3 class="section-title">Today · ${esc(dayName)} <a class="link-btn" href="#/day/${today}">Day view</a></h3><div class="today-meals">${todayHtml}</div></section>
-          <section><h3 class="section-title">Coming up</h3>${upcomingHtml}</section>
+          <section><h3 class="section-title">Planned recipes <a class="link-btn" href="#/menu">Full plan</a></h3>${upcomingHtml}</section>
         </div>
         <div class="home-col">
           <section class="panel"><h3 class="section-title">Shopping</h3>${shopHtml}</section>
@@ -146,69 +140,62 @@
     return `<div class="empty">
       <div class="empty__icon">🥘</div>
       <h2 class="empty__title">Welcome to Velum</h2>
-      <p class="empty__text">Keep the recipes you love, plan breakfast, lunch and dinner for the week, and Velum adds up exactly what to buy &mdash; combined, converted and sorted by aisle.</p>
+      <p class="empty__text">Keep the recipes you love, plan breakfast, lunch and dinner from Saturday through the following Saturday, and Velum adds up exactly what to buy &mdash; combined, converted and sorted by aisle. Your plan stays until you change it.</p>
       <div class="empty__actions">
         <button type="button" class="btn btn--beacon" data-act="new-recipe">+ Add your first recipe</button>
         <button type="button" class="btn btn--ghost" data-act="starter">Load starter recipes</button>
       </div>
       <div class="welcome-steps">
         <div class="insight"><span class="insight__body"><strong>1 · Recipes</strong><br />Type or paste ingredients; Velum understands &ldquo;1 ½ cups flour, sifted&rdquo;.</span></div>
-        <div class="insight"><span class="insight__body"><strong>2 · Weekly menu</strong><br />Tap a slot to add a recipe, set servings, drag to rearrange.</span></div>
+        <div class="insight"><span class="insight__body"><strong>2 · Menu plan</strong><br />Eight days, no calendar dates. Tap a slot to add a recipe, set servings, drag to rearrange.</span></div>
         <div class="insight"><span class="insight__body"><strong>3 · Shopping</strong><br />One tap builds a consolidated list. Re-sync anytime without losing your checks.</span></div>
       </div>
     </div>`;
   }
 
-  // ---------- Weekly menu ----------
-  function weekToolbar(db, ws, mode, date) {
-    const today = U.todayISO();
-    const thisWeek = P.weekOf(db, today);
-    const prev = mode === "day" ? "#/day/" + U.addDays(date, -1) : "#/menu/" + U.addDays(ws, -7);
-    const next = mode === "day" ? "#/day/" + U.addDays(date, 1) : "#/menu/" + U.addDays(ws, 7);
-    const label = mode === "day" ? U.fmtDate(date, { weekday: "long", month: "short", day: "numeric", year: "numeric" }) : U.fmtRange(ws, U.addDays(ws, 6));
-    const isCurrent = mode === "day" ? date === today : ws === thisWeek;
+  // ---------- Menu plan ----------
+  function planToolbar(day) {
+    const index = M.PLAN_DAYS.indexOf(day);
     return `<div class="week-bar">
       <div class="week-nav">
-        <a class="btn btn--icon" href="${prev}" aria-label="Previous ${mode === "day" ? "day" : "week"}">‹</a>
-        <span class="week-nav__range">${esc(label)}</span>
-        <a class="btn btn--icon" href="${next}" aria-label="Next ${mode === "day" ? "day" : "week"}">›</a>
-        ${isCurrent ? "" : `<a class="btn btn--tiny" href="${mode === "day" ? "#/day/" + today : "#/menu/" + thisWeek}">${mode === "day" ? "Today" : "This week"}</a>`}
-        <input class="field__input week-nav__date" type="date" value="${mode === "day" ? date : ws}" data-change="jump-date" data-mode="${mode}" aria-label="Jump to date" />
+        ${day ? `${index > 0 ? `<a class="btn btn--icon" href="#/day/${M.PLAN_DAYS[index - 1]}" aria-label="Previous day">‹</a>` : ""}
+          <select class="field__input" data-change="pick-day" aria-label="Choose a day">${dayOptions(day)}</select>
+          ${index < M.PLAN_DAYS.length - 1 ? `<a class="btn btn--icon" href="#/day/${M.PLAN_DAYS[index + 1]}" aria-label="Next day">›</a>` : ""}`
+          : `<span class="week-nav__range">Saturday → Following Saturday</span>`}
       </div>
       <div class="seg seg--inline" role="tablist">
-        <a class="seg__btn${mode === "week" ? " is-active" : ""}" href="#/menu/${ws}" role="tab" aria-selected="${mode === "week"}">Week</a>
-        <a class="seg__btn${mode === "day" ? " is-active" : ""}" href="#/day/${mode === "day" ? date : (ws <= today && today < U.addDays(ws, 7) ? today : ws)}" role="tab" aria-selected="${mode === "day"}">Day</a>
+        <a class="seg__btn${day ? "" : " is-active"}" href="#/menu" role="tab" aria-selected="${!day}">Plan</a>
+        <a class="seg__btn${day ? " is-active" : ""}" href="#/day/${day || "saturday"}" role="tab" aria-selected="${!!day}">Day</a>
       </div>
     </div>`;
   }
-  function menuWeek(db, ui, ws) {
-    const today = U.todayISO();
-    const menu = P.menuForWeek(db, ws);
+  function menuPlan(db, ui) {
+    const menu = P.menuForPlan(db);
     const recipes = recipeMap(db);
-    const dates = U.weekDates(ws);
-    const stats = P.weekStats(db, ws);
+    const days = M.PLAN_DAYS;
+    const stats = P.planStats(db);
     const list = menu && S.listForMenu(menu.id);
-    const placeholderName = "Week of " + U.fmtDate(ws, { month: "long", day: "numeric" });
+    const placeholderName = "Your menu plan";
 
-    let grid = `<div class="week-grid" role="grid" aria-label="Weekly menu"><div class="wg-corner"></div>`;
-    dates.forEach((d) => {
-      grid += `<div class="wg-day${d === today ? " is-today" : ""}${d < today ? " is-past" : ""}" role="columnheader">
-        <a class="wg-day__link" href="#/day/${d}"><span class="wg-day__name">${esc(U.fmtWeekday(d))}${d === today ? " · today" : ""}</span><span class="wg-day__num">${esc(U.fmtShort(d))}</span></a>
-        <button type="button" class="mini-btn" data-act="day-menu" data-date="${d}" aria-label="Options for ${esc(U.fmtWeekday(d, true))}" title="Copy or clear this day">⋯</button></div>`;
+    let grid = `<div class="week-grid" role="grid" aria-label="Eight-day menu plan"><div class="wg-corner"></div>`;
+    days.forEach((d) => {
+      grid += `<div class="wg-day" role="columnheader">
+        <a class="wg-day__link" href="#/day/${d}"><span class="wg-day__name">${M.DAY_LABEL[d]}</span></a>
+        <button type="button" class="mini-btn" data-act="day-menu" data-day="${d}" aria-label="Options for ${M.DAY_LABEL[d]}" title="Copy or clear this day">⋯</button></div>`;
     });
     M.MEAL_TYPES.forEach((t) => {
       grid += `<div class="wg-meal" role="rowheader"><span>${M.MEAL_ICON[t]}</span><span class="wg-meal__label">${M.MEAL_LABEL[t]}</span></div>`;
-      dates.forEach((d) => {
+      days.forEach((d) => {
         const meals = P.slotMeals(db, d, t);
-        grid += `<div class="wg-cell${meals.length ? "" : " is-empty"}${d === today ? " is-today" : ""}" data-drop-date="${d}" data-drop-meal="${t}" role="gridcell">` +
+        grid += `<div class="wg-cell${meals.length ? "" : " is-empty"}" data-drop-day="${d}" data-drop-meal="${t}" role="gridcell">` +
           meals.map((m) => mealChip(m, recipes, { draggable: true })).join("") + slotAdd(d, t, meals.length ? "+" : "+ Add") + `</div>`;
       });
     });
     grid += `</div>`;
 
-    const listHtml = dates.map((d) => `<section class="wl-day${d === today ? " is-today" : ""}">
-      <div class="wl-day__head"><a class="wl-day__title" href="#/day/${d}">${esc(U.fmtDate(d, { weekday: "long", month: "short", day: "numeric" }))}${d === today ? " · Today" : ""}</a>
-      <button type="button" class="mini-btn" data-act="day-menu" data-date="${d}" aria-label="Options for ${esc(U.fmtWeekday(d, true))}">⋯</button></div>
+    const listHtml = days.map((d) => `<section class="wl-day">
+      <div class="wl-day__head"><a class="wl-day__title" href="#/day/${d}">${M.DAY_LABEL[d]}</a>
+      <button type="button" class="mini-btn" data-act="day-menu" data-day="${d}" aria-label="Options for ${M.DAY_LABEL[d]}">⋯</button></div>
       ${M.MEAL_TYPES.map((t) => {
         const meals = P.slotMeals(db, d, t);
         return `<div class="wl-row"><span class="wl-row__label">${M.MEAL_LABEL[t]}</span><div class="wl-row__body">${meals.map((m) => mealChip(m, recipes)).join("")}${meals.length ? "" : slotAdd(d, t, "+ Add " + M.MEAL_LABEL[t].toLowerCase())}</div></div>`;
@@ -216,33 +203,30 @@
 
     const shopBtn = list
       ? `<a class="btn btn--beacon" href="#/shopping/${esc(list.id)}">🛒 Shopping list${S.isListOutdated(list.id) ? " · needs update" : ""}</a>`
-      : `<button type="button" class="btn btn--beacon" data-act="create-week-list" data-week="${ws}"${stats.meals ? "" : " disabled"}>🛒 Build shopping list</button>`;
+      : `<button type="button" class="btn btn--beacon" data-act="create-plan-list"${stats.meals ? "" : " disabled"}>🛒 Build shopping list</button>`;
 
     return `
       <header class="page-head">
         <div style="flex:1 1 320px;min-width:0">
-          <input class="menu-name" value="${esc(menu ? menu.name : "")}" placeholder="${esc(placeholderName)}" maxlength="80" data-change="menu-name" data-week="${ws}" aria-label="Menu name" />
-          <p class="page-head__sub">Tap a slot to add a meal${ui.canDrag ? " · drag meals to move them (hold ⌥/Alt to copy)" : ""}.</p>
+          <input class="menu-name" value="${esc(menu ? menu.name : "")}" placeholder="${esc(placeholderName)}" maxlength="80" data-change="menu-name" aria-label="Menu name" />
+          <p class="page-head__sub">One reusable eight-day plan, no dates. Tap a slot to add a meal${ui.canDrag ? " · drag meals to move them (hold ⌥/Alt to copy)" : ""}.</p>
         </div>
         <div class="page-head__actions">
-          <button type="button" class="btn btn--ghost btn--tiny" data-act="copy-week" data-week="${ws}"${stats.meals ? "" : " disabled"}>Copy week to…</button>
-          <button type="button" class="btn btn--ghost btn--tiny" data-act="reuse-week" data-week="${ws}">Start from another week…</button>
-          <button type="button" class="btn btn--danger btn--tiny" data-act="clear-week" data-week="${ws}"${stats.meals ? "" : " disabled"}>Clear week</button>
+          <button type="button" class="btn btn--danger btn--tiny" data-act="clear-plan"${stats.meals ? "" : " disabled"}>Clear plan</button>
         </div>
       </header>
-      ${weekToolbar(db, ws, "week")}
+      ${planToolbar()}
       ${grid}
       <div class="week-list">${listHtml}</div>
       <div class="week-foot">
-        <div class="week-foot__stats"><span><strong>${stats.filled}</strong> of 21 planned</span><span><strong>${stats.done}</strong> made</span><span><strong>${stats.unplanned}</strong> open</span></div>
+        <div class="week-foot__stats"><span><strong>${stats.filled}</strong> of ${stats.slots} planned</span><span><strong>${stats.done}</strong> made</span><span><strong>${stats.unplanned}</strong> open</span></div>
         ${shopBtn}
       </div>`;
   }
-  function menuDay(db, ui, date) {
-    const ws = P.weekOf(db, date);
+  function menuDay(db, ui, day) {
     const recipes = recipeMap(db);
     const cards = M.MEAL_TYPES.map((t) => {
-      const meals = P.slotMeals(db, date, t);
+      const meals = P.slotMeals(db, day, t);
       const rows = meals.map((m) => {
         const r = m.recipeId && recipes.get(m.recipeId);
         const meta = [];
@@ -259,12 +243,12 @@
           </div></div>`;
       }).join("");
       return `<section class="day-card"><div class="day-card__head"><h3 class="day-card__title">${M.MEAL_ICON[t]} ${M.MEAL_LABEL[t]}</h3>
-        <button type="button" class="btn btn--ghost btn--tiny" data-act="add-slot" data-date="${date}" data-meal="${t}">+ Add</button></div>
+        <button type="button" class="btn btn--ghost btn--tiny" data-act="add-slot" data-day="${day}" data-meal="${t}">+ Add</button></div>
         ${rows || `<p class="empty-note">Nothing planned.</p>`}</section>`;
     }).join("");
-    return `${pageHead(esc(U.fmtDate(date, { weekday: "long", month: "long", day: "numeric" })), esc(U.relDays(U.daysBetween(U.todayISO(), date)) || ""),
-      `<button type="button" class="btn btn--ghost btn--tiny" data-act="day-menu" data-date="${date}">Copy / clear day…</button>`)}
-      ${weekToolbar(db, ws, "day", date)}
+    return `${pageHead(M.DAY_LABEL[day], "Part of your reusable menu plan.",
+      `<button type="button" class="btn btn--ghost btn--tiny" data-act="day-menu" data-day="${day}">Copy / clear day…</button>`)}
+      ${planToolbar(day)}
       <div class="day-cards">${cards}</div>`;
   }
 
@@ -369,10 +353,9 @@
       stat("Serves", fmtServ(r.servings)),
       r.difficulty ? stat("Difficulty", M.DIFFICULTY_LABEL[r.difficulty]) : "",
     ].join("");
-    const lastUsed = usage.map((m) => m.date).sort().pop();
     return `
-      ${r.archived ? `<div class="insight insight--warn archived-banner"><span class="insight__body"><strong>Archived.</strong> It's hidden from the library but kept so past menus still show it.</span><button type="button" class="btn btn--tiny" data-act="restore-recipe" data-id="${esc(r.id)}">Restore to library</button></div>` : ""}
-      ${meal ? `<div class="insight insight--good"><span class="insight__body">Planned for <strong>${esc(U.fmtDate(meal.date, { weekday: "long", month: "short", day: "numeric" }))} · ${M.MEAL_LABEL[meal.meal]}</strong> — showing amounts for ${fmtServ(meal.servings)} servings.</span><a class="btn btn--tiny" href="#/menu/${P.weekOf(db, meal.date)}">Back to menu</a></div>` : ""}
+      ${r.archived ? `<div class="insight insight--warn archived-banner"><span class="insight__body"><strong>Archived.</strong> It's hidden from the library but kept so your plan still shows it.</span><button type="button" class="btn btn--tiny" data-act="restore-recipe" data-id="${esc(r.id)}">Restore to library</button></div>` : ""}
+      ${meal ? `<div class="insight insight--good"><span class="insight__body">Planned for <strong>${M.DAY_LABEL[meal.day]} · ${M.MEAL_LABEL[meal.meal]}</strong> — showing amounts for ${fmtServ(meal.servings)} servings.</span><a class="btn btn--tiny" href="#/menu">Back to menu</a></div>` : ""}
       <section class="recipe-hero">
         <div class="recipe-hero__img">${imgTag(r) || placeholder(r)}</div>
         <div class="recipe-hero__body">
@@ -412,14 +395,14 @@
           ${r.sourceUrl ? `<p class="field__hint" style="margin-top:12px">Source: <a href="${esc(r.sourceUrl)}" target="_blank" rel="noopener noreferrer nofollow">${esc(r.sourceUrl.replace(/^https?:\/\//, "").slice(0, 60))}</a></p>` : ""}
         </section>
       </div>
-      <p class="recipe-foot"><span>Added ${esc(U.fmtDate(r.createdAt.slice(0, 10)))}</span><span>Edited ${esc(U.fmtDate(r.updatedAt.slice(0, 10)))}</span><span>Planned ${U.plural(usage.length, "time")}${lastUsed ? " · last " + esc(U.fmtShort(lastUsed)) : ""}</span></p>`;
+      <p class="recipe-foot"><span>Added ${esc(U.fmtDate(r.createdAt.slice(0, 10)))}</span><span>Edited ${esc(U.fmtDate(r.updatedAt.slice(0, 10)))}</span><span>In ${U.plural(usage.length, "planned meal")}</span></p>`;
   }
 
   // ---------- Shopping ----------
   function sourcesText(it) {
     if (it.manual) return "Added by you";
     const by = new Map();
-    it.sources.forEach((s) => { if (!by.has(s.recipe)) by.set(s.recipe, []); by.get(s.recipe).push(U.fmtWeekday(s.date)); });
+    it.sources.forEach((s) => { if (!by.has(s.recipe)) by.set(s.recipe, []); by.get(s.recipe).push(M.DAY_LABEL[s.day]); });
     return Array.from(by.entries()).map(([name, days]) => esc(name) + " (" + esc(days.join(", ")) + ")").join(" · ");
   }
   function itemRow(it, ui, opts) {
@@ -445,25 +428,23 @@
     </li>`;
   }
   function shopping(db, ui, list) {
-    const today = U.todayISO();
-    const ws = P.weekOf(db, today);
-    const thisMenu = P.menuForWeek(db, ws);
+    const thisMenu = P.menuForPlan(db);
     const thisList = thisMenu && S.listForMenu(thisMenu.id);
     const lists = db.lists.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    const newWeekBtn = !thisList && P.mealsForWeek(db, ws).length
-      ? `<button type="button" class="btn btn--beacon" data-act="create-week-list" data-week="${ws}">🛒 Build list for this week</button>` : "";
+    const newPlanBtn = !thisList && db.meals.length
+      ? `<button type="button" class="btn btn--beacon" data-act="create-plan-list">🛒 Build list for this plan</button>` : "";
     if (!list) {
-      return `${pageHead("Shopping", "Lists build themselves from your weekly menu.", `<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button>`)}
+      return `${pageHead("Shopping", "Lists build themselves from your menu plan.", `<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button>`)}
         <div class="empty"><div class="empty__icon">🛒</div><h2 class="empty__title">No shopping list yet</h2>
-        <p class="empty__text">${P.mealsForWeek(db, ws).length ? "This week's menu is ready — build a list and Velum will combine every ingredient." : "Plan some meals first, then build a list in one tap. You can also start a blank list for a quick run."}</p>
-        <div class="empty__actions">${newWeekBtn || `<a class="btn btn--beacon" href="#/menu">Plan this week</a>`}<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button></div></div>`;
+        <p class="empty__text">${db.meals.length ? "Your menu plan is ready — build a list and Velum will combine every ingredient." : "Plan some meals first, then build a list in one tap. You can also start a blank list for a quick run."}</p>
+        <div class="empty__actions">${newPlanBtn || `<a class="btn btn--beacon" href="#/menu">Plan meals</a>`}<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button></div></div>`;
     }
     const all = S.listItems(list.id).filter((i) => !i.cleared);
     const pantrySet = all.filter((i) => i.inPantry && !i.pantryOverride);
     const items = all.filter((i) => !(i.inPantry && !i.pantryOverride));
     const bought = items.filter((i) => i.purchased);
-    const ws2 = S.weekStartForList(list);
-    const outdated = ws2 && S.isListOutdated(list.id);
+    const linkedMenu = S.menuForList(list);
+    const outdated = linkedMenu && S.isListOutdated(list.id);
     const settings = db.settings;
     const order = settings.categoryOrder;
     const sortItems = (arr) => arr.slice().sort((a, b) => a.sortOrder - b.sortOrder);
@@ -484,7 +465,7 @@
       if (flat.length) body = `<ul class="shop-items">${flat.map((i) => itemRow(i, ui, { showCategory: true })).join("")}</ul>`;
     }
     if (!body && items.length) body = `<div class="insight insight--good"><span class="insight__body"><strong>All done!</strong> Everything on the list is in the cart.</span></div>`;
-    if (!items.length) body = `<p class="empty-note">This list is empty. Add items above${ws2 ? " or plan meals for this week" : ""}.</p>`;
+    if (!items.length) body = `<p class="empty-note">This list is empty. Add items above${linkedMenu ? " or add meals to the plan" : ""}.</p>`;
     if (shownBought.length && settings.purchased === "bottom") {
       body += `<section class="aisle"><h3 class="aisle__title">✅ In the cart <span class="aisle__count">${shownBought.length}</span></h3><ul class="shop-items">${shownBought.map((i) => itemRow(i, ui, { showCategory: true })).join("")}</ul></section>`;
     }
@@ -498,14 +479,14 @@
           ${lists.map((l) => `<option value="${esc(l.id)}"${l.id === list.id ? " selected" : ""}>${esc(l.name)}${l.status === "done" ? " ✓" : ""}</option>`).join("")}
         </select>
         <div class="row-actions">
-          ${newWeekBtn ? newWeekBtn.replace("btn--beacon", "btn--ghost btn--tiny") : ""}
+          ${newPlanBtn ? newPlanBtn.replace("btn--beacon", "btn--ghost btn--tiny") : ""}
           <button type="button" class="btn btn--ghost btn--tiny" data-act="new-list">+ New list</button>
           <button type="button" class="btn btn--ghost btn--tiny" data-act="rename-list" data-id="${esc(list.id)}">Rename</button>
           <button type="button" class="btn btn--danger btn--tiny" data-act="delete-list" data-id="${esc(list.id)}">Delete</button>
         </div>
       </div>
-      ${ws2 ? `<div class="insight${outdated ? " insight--warn" : ""}"><span class="insight__body">${outdated ? "<strong>Your menu changed.</strong> Update to pull in new amounts — your checks and edits are kept." : `From the menu for <strong>${esc(U.fmtRange(ws2, U.addDays(ws2, 6)))}</strong>${list.generatedAt ? " · updated " + esc(U.fmtDateTime(list.generatedAt)) : ""}.`}</span>
-        <a class="btn btn--ghost btn--tiny" href="#/menu/${ws2}">Menu</a><button type="button" class="btn ${outdated ? "btn--beacon" : "btn--ghost"} btn--tiny" data-act="regen" data-id="${esc(list.id)}">${outdated ? "Update list" : "Re-sync"}</button></div>` : ""}
+      ${linkedMenu ? `<div class="insight${outdated ? " insight--warn" : ""}"><span class="insight__body">${outdated ? "<strong>Your menu changed.</strong> Update to pull in new amounts — your checks and edits are kept." : `From your <strong>Saturday-through-Saturday plan</strong>${list.generatedAt ? " · updated " + esc(U.fmtDateTime(list.generatedAt)) : ""}.`}</span>
+        <a class="btn btn--ghost btn--tiny" href="#/menu">Menu</a><button type="button" class="btn ${outdated ? "btn--beacon" : "btn--ghost"} btn--tiny" data-act="regen" data-id="${esc(list.id)}">${outdated ? "Update list" : "Re-sync"}</button></div>` : ""}
       <div class="shop-progress">
         <div class="shop-progress__text"><span><strong>${bought.length}</strong> of ${items.length} in the cart</span><span>${items.length - bought.length} to go</span></div>
         ${bar(items.length ? bought.length / items.length : 0)}
@@ -601,5 +582,5 @@
       <p class="field__hint" style="margin-top:10px">On this device now: ${U.plural(lc.recipes, "recipe")}, ${U.plural(lc.meals, "meal")}, ${U.plural(lc.items, "list item")}.${lc.newer ? " <strong>This device has changes newer than the backup.</strong>" : ""}</p>`;
   }
 
-  V.views = { home, menuWeek, menuDay, library, recipeDetail, shopping, pantry, changesHtml, restorePreviewHtml, thumb, imgTag, placeholder, recipeIcon, filterRecipes, mealName };
+  V.views = { home, menuPlan, menuDay, library, recipeDetail, shopping, pantry, changesHtml, restorePreviewHtml, thumb, imgTag, placeholder, recipeIcon, filterRecipes, mealName, dayOptions };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);
