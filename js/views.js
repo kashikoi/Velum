@@ -48,7 +48,7 @@
     const r = m.recipeId && recipes.get(m.recipeId);
     const o = opts || {};
     const meta = [];
-    if (r) meta.push("×" + fmtServ(m.servings));
+    if (r) meta.push("Serves " + fmtServ(m.servings));
     if (r && r.archived) meta.push("archived");
     if (m.note) meta.push(esc(m.note));
     const cls = ["meal-chip", m.done ? "is-done" : "", r ? "" : "is-note", r && r.archived ? "is-archived" : ""].filter(Boolean).join(" ");
@@ -178,17 +178,17 @@
     const placeholderName = "Your menu plan";
 
     let grid = `<div class="week-grid" role="grid" aria-label="Eight-day menu plan"><div class="wg-corner"></div>`;
+    M.MEAL_TYPES.forEach((t) => {
+      grid += `<div class="wg-meal" role="columnheader"><span>${M.MEAL_ICON[t]}</span><span class="wg-meal__label">${M.MEAL_LABEL[t]}</span></div>`;
+    });
     days.forEach((d) => {
-      grid += `<div class="wg-day" role="columnheader">
+      grid += `<div class="wg-day" role="rowheader">
         <a class="wg-day__link" href="#/day/${d}"><span class="wg-day__name">${M.DAY_LABEL[d]}</span></a>
         <button type="button" class="mini-btn" data-act="day-menu" data-day="${d}" aria-label="Options for ${M.DAY_LABEL[d]}" title="Copy or clear this day">⋯</button></div>`;
-    });
-    M.MEAL_TYPES.forEach((t) => {
-      grid += `<div class="wg-meal" role="rowheader"><span>${M.MEAL_ICON[t]}</span><span class="wg-meal__label">${M.MEAL_LABEL[t]}</span></div>`;
-      days.forEach((d) => {
+      M.MEAL_TYPES.forEach((t) => {
         const meals = P.slotMeals(db, d, t);
         grid += `<div class="wg-cell${meals.length ? "" : " is-empty"}" data-drop-day="${d}" data-drop-meal="${t}" role="gridcell">` +
-          meals.map((m) => mealChip(m, recipes, { draggable: true })).join("") + slotAdd(d, t, meals.length ? "+" : "+ Add") + `</div>`;
+          meals.map((m) => mealChip(m, recipes, { draggable: true })).join("") + slotAdd(d, t, meals.length ? "+ Add another" : "+ Add") + `</div>`;
       });
     });
     grid += `</div>`;
@@ -198,7 +198,7 @@
       <button type="button" class="mini-btn" data-act="day-menu" data-day="${d}" aria-label="Options for ${M.DAY_LABEL[d]}">⋯</button></div>
       ${M.MEAL_TYPES.map((t) => {
         const meals = P.slotMeals(db, d, t);
-        return `<div class="wl-row"><span class="wl-row__label">${M.MEAL_LABEL[t]}</span><div class="wl-row__body">${meals.map((m) => mealChip(m, recipes)).join("")}${meals.length ? "" : slotAdd(d, t, "+ Add " + M.MEAL_LABEL[t].toLowerCase())}</div></div>`;
+        return `<div class="wl-row"><span class="wl-row__label">${M.MEAL_LABEL[t]}</span><div class="wl-row__body">${meals.map((m) => mealChip(m, recipes)).join("")}${slotAdd(d, t, meals.length ? "+ Add another" : "+ Add " + M.MEAL_LABEL[t].toLowerCase())}</div></div>`;
       }).join("")}</section>`).join("");
 
     const shopBtn = list
@@ -209,7 +209,7 @@
       <header class="page-head">
         <div style="flex:1 1 320px;min-width:0">
           <input class="menu-name" value="${esc(menu ? menu.name : "")}" placeholder="${esc(placeholderName)}" maxlength="80" data-change="menu-name" aria-label="Menu name" />
-          <p class="page-head__sub">One reusable eight-day plan, no dates. Tap a slot to add a meal${ui.canDrag ? " · drag meals to move them (hold ⌥/Alt to copy)" : ""}.</p>
+          <p class="page-head__sub">One reusable eight-day plan, no dates. Add multiple meals per slot; use notes for who each meal is for${ui.canDrag ? " · drag meals to move them (hold ⌥/Alt to copy)" : ""}.</p>
         </div>
         <div class="page-head__actions">
           <button type="button" class="btn btn--danger btn--tiny" data-act="clear-plan"${stats.meals ? "" : " disabled"}>Clear plan</button>

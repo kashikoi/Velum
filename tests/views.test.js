@@ -13,7 +13,8 @@ test("plan and day views use eight fixed named days and no date controls", () =>
   const db = S.getDb();
   const ui = { canDrag: true };
   const html = W.menuPlan(db, ui);
-  assert.equal((html.match(/role="columnheader"/g) || []).length, 8);
+  assert.equal((html.match(/role="columnheader"/g) || []).length, 3);
+  assert.equal((html.match(/role="rowheader"/g) || []).length, 8);
   assert.equal((html.match(/role="gridcell"/g) || []).length, 24);
   const headings = [...html.matchAll(/class="wg-day__name">([^<]+)</g)].map((m) => m[1]);
   assert.deepEqual(headings, M.PLAN_DAYS.map((d) => M.DAY_LABEL[d]));
@@ -30,6 +31,23 @@ test("plan and day views use eight fixed named days and no date controls", () =>
   assert.match(last, /#\/day\/friday/);
   assert.equal((W.dayOptions("following-saturday").match(/<option/g) || []).length, 8);
   assert.match(W.dayOptions("following-saturday"), /value="following-saturday" selected>Saturday<\/option>/);
+});
+
+test("days are rows with three meal columns and occupied slots can hold multiple detailed meals", () => {
+  S.init();
+  const first = S.createRecipe({ name: "Chicken sandwich with roasted vegetables", servings: 1 });
+  const second = S.createRecipe({ name: "Oatmeal with berries and yogurt", servings: 1 });
+  S.addMeal({ day: "monday", meal: "breakfast", recipeId: first.id, servings: 1, note: "For Alex" });
+  S.addMeal({ day: "monday", meal: "breakfast", recipeId: second.id, servings: 1, note: "For Sam" });
+  const html = W.menuPlan(S.getDb(), { canDrag: true });
+  const cells = [...html.matchAll(/data-drop-day="([^"]+)" data-drop-meal="([^"]+)"/g)].map((m) => [m[1], m[2]]);
+  assert.deepEqual(cells, M.PLAN_DAYS.flatMap((day) => M.MEAL_TYPES.map((meal) => [day, meal])));
+  assert.match(html, /Serves 1 · For Alex/);
+  assert.match(html, /Serves 1 · For Sam/);
+  assert.match(html, /Chicken sandwich with roasted vegetables/);
+  assert.match(html, /Oatmeal with berries and yogurt/);
+  assert.equal((html.match(/\+ Add another/g) || []).length, 2, "desktop and mobile occupied slots both offer another meal");
+  assert.equal((html.match(/draggable="true"/g) || []).length, 2);
 });
 
 test("overview and shopping are independent of the current calendar date", () => {
