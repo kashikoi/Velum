@@ -7,7 +7,7 @@
   const W = V.views;
   const esc = U.escapeHtml;
 
-  const APP_VERSION = "2026.11.01.8";
+  const APP_VERSION = "2026.11.14.1";
   const THEME_KEY = "velum_cloud_theme";
   const ACTIVE_THEME_KEY = "velum_cloud_active_theme";
   const THEMES = ["day", "twilight", "night"];

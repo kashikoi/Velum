@@ -353,7 +353,6 @@
     el.iError.hidden = true;
     const info = [];
     if (!it.manual) {
-      info.push("Menu needs: <strong>" + esc(Un.formatAmount(it.genQty, it.genUnit) || "to taste") + "</strong>" + (it.toTaste && it.genQty != null ? " (plus some to taste)" : ""));
       if (it.sources.length) info.push("For: <ul>" + it.sources.map((s) => `<li>${esc(s.recipe)} — ${M.DAY_LABEL[s.day]} ${M.MEAL_LABEL[s.meal] ? M.MEAL_LABEL[s.meal].toLowerCase() : ""}</li>`).join("") + "</ul>");
       if (it.stale) info.push("No meal on the menu needs this any more.");
     }

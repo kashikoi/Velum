@@ -29,12 +29,15 @@ this up in a new session, read this first.
   through `following-saturday` (eight independent days, 24 slots). One reusable menu, no calendar dates,
   week history, or automatic rollover. Lists link by `menuId`; shopping includes both Saturdays.
   `normalizeDb()` migrates v1 dated meals by weekday and relinks old lists to the single plan.
-- `planner.aggregate()` is the single source of shopping math (see README "How the shopping list is
-  calculated"). `planner.reconcile()` merges regenerated entries into existing items — keep its
-  guarantees (manual items untouched; purchased kept unless need increased; `qtyEdited` kept; touched
+- `planner.aggregate()` builds shopping entries: **one line per ingredient, qty 1, no unit** — recipe
+  amounts/units/servings are deliberately ignored (user preference: quantities are managed on the list;
+  recipe scaling only affects the recipe view). `planner.reconcile()` merges regenerated entries into
+  existing items — keep its guarantees (manual items untouched; purchased kept; `qtyEdited` kept; touched
   items become `stale` instead of being removed; `cleared` stays hidden).
-- Item `key` = `<i:catalogId | n:normalizedName>|<volume|mass|count:<unit>|taste>`. Don't change key
-  shape without a migration — reconciliation matches on it.
+- Item `key` = `<i:catalogId | n:normalizedName>|item`. Legacy keys ending in `volume|mass|count:<unit>|taste`
+  are migrated in `reconcile()` (paired by ingredient, checked/edited amounts kept). Don't change key shape
+  without a migration — reconciliation matches on it.
+- Pantry mode is `off|flag`; legacy `subtract` normalizes to `flag`. The `measurement` setting is unused.
 - Recipes referenced by planned meals are archived (`archived: true`), never erased. Photos can be shared by
   duplicated recipes: only delete via `editors.releaseImage()` (checks references).
 - Photos: IndexedDB (`images.js`), re-encoded JPEG ≤ 1000 px through canvas; cached in memory so views

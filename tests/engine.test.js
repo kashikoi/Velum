@@ -169,7 +169,7 @@ test("the plan has one stable menu and shopping list independent of old week set
 });
 
 // ---------- Shopping lists ----------
-test("acceptance: spec example consolidates ground beef, onions and olive oil", () => {
+test("acceptance: spec example consolidates ground beef, onions and olive oil into one line each", () => {
   fresh();
   const mon = recipe("Monday dinner", 4, [ing("1", "lb", "ground beef"), ing("2", "", "onions"), ing("1", "tbsp", "olive oil")]);
   const wed = recipe("Wednesday dinner", 4, [ing("1.5", "lb", "ground beef"), ing("1", "", "onion"), ing("2", "tbsp", "olive oil")]);
@@ -179,42 +179,25 @@ test("acceptance: spec example consolidates ground beef, onions and olive oil", 
   const items = S.listItems(list.id);
   assert.equal(items.length, 3, "no duplicate entries");
   const beef = findItem(list.id, "Ground beef");
-  assert.equal(beef.qty, 2.5); assert.equal(beef.unit, "lb"); assert.equal(beef.category, "meat");
+  assert.equal(beef.qty, 1); assert.equal(beef.unit, ""); assert.equal(beef.category, "meat");
   const onion = findItem(list.id, "Onion");
-  assert.equal(onion.qty, 3); assert.equal(onion.category, "produce");
+  assert.equal(onion.qty, 1); assert.equal(onion.category, "produce");
   const oil = findItem(list.id, "Olive oil");
-  assert.equal(oil.qty, 3); assert.equal(oil.unit, "tbsp");
+  assert.equal(oil.qty, 1); assert.equal(oil.unit, "");
   assert.equal(beef.sources.length, 2);
 });
 
-test("compatible units convert; volume and weight never mix without a density", () => {
+test("shopping lines ignore recipe amounts and units: one line per ingredient at quantity 1", () => {
   const db = M.emptyDb();
   const out = P.aggregate([
     { name: "butter", qty: 1, unit: "tbsp" }, { name: "butter", qty: 2, unit: "tsp" },
     { name: "flour", qty: 1, unit: "cup" }, { name: "flour", qty: 100, unit: "g" },
-    { name: "chicken", qty: 8, unit: "oz" }, { name: "chicken", qty: 1, unit: "lb" },
-    { name: "milk", qty: 250, unit: "ml" }, { name: "milk", qty: 1, unit: "l" },
     { name: "garlic", qty: 4, unit: "clove" }, { name: "garlic", qty: 1, unit: "head" },
     { name: "salt", qty: null, unit: "" }, { name: "salt", qty: 1, unit: "tsp" },
-  ], db.ingredients, "us");
-  const get = (n, u) => out.filter((e) => e.name.toLowerCase() === n && (u === undefined || e.unit === u));
-  const butter = get("butter")[0];
-  assert.equal(butter.unit, "tbsp");
-  assert.ok(Math.abs(butter.qty - 5 / 3) < 0.01, "1 tbsp + 2 tsp = 1⅔ tbsp");
-  assert.equal(get("flour").length, 2, "1 cup flour and 100 g flour stay separate");
-  const chicken = get("chicken")[0];
-  assert.equal(chicken.unit, "lb"); assert.equal(chicken.qty, 1.5);
-  const milk = get("milk")[0];
-  assert.equal(milk.unit, "l"); assert.equal(milk.qty, 1.25);
-  assert.equal(get("garlic").length, 2, "cloves and heads are different count units");
-  const salt = get("salt");
-  assert.equal(salt.length, 1); assert.equal(salt[0].qty, 1); assert.equal(salt[0].toTaste, true);
-
-  const withDensity = P.aggregate([{ name: "flour", qty: 1, unit: "cup" }, { name: "flour", qty: 100, unit: "g" }],
-    [M.normalizeIngredient({ id: "flour1", name: "Flour", category: "pantry", gramsPerCup: 120 })], "us");
-  assert.equal(withDensity.length, 1);
-  assert.equal(withDensity[0].unit, "g");
-  assert.equal(withDensity[0].qty, 220, "catalog density lets 1 cup + 100 g = 220 g");
+    { name: "pepper", qty: null, unit: "" },
+  ], db.ingredients);
+  assert.deepEqual(out.map((e) => e.name.toLowerCase()).sort(), ["butter", "flour", "garlic", "pepper", "salt"]);
+  out.forEach((e) => { assert.equal(e.qty, 1); assert.equal(e.unit, ""); assert.equal(e.toTaste, false); assert.match(e.key, /\|item$/); });
 });
 
 test("meaningfully different ingredients are never combined", () => {
@@ -223,21 +206,22 @@ test("meaningfully different ingredients are never combined", () => {
     { name: "whole milk", qty: 1, unit: "cup" }, { name: "skim milk", qty: 1, unit: "cup" },
     { name: "fresh basil", qty: 1, unit: "bunch" }, { name: "dried basil", qty: 1, unit: "tsp" },
     { name: "Garlic cloves", qty: 2, unit: "" }, { name: "cloves of garlic", qty: 1, unit: "" }, { name: "garlic", qty: 1, unit: "clove" },
-  ], [], "us");
+  ], []);
   assert.equal(out.length, 7);
   const garlic = out.find((e) => e.name === "Garlic");
-  assert.equal(garlic.qty, 4); assert.equal(garlic.unit, "clove");
+  assert.equal(garlic.qty, 1); assert.equal(garlic.unit, "");
 });
 
-test("serving changes scale the shopping list; water is never shopped; counts round up", () => {
+test("servings don't multiply shopping quantities; water is never shopped", () => {
   fresh();
-  const r = recipe("Rice", 4, [ing("2", "cup", "rice"), ing("3", "cup", "water"), ing("1", "", "onion")]);
-  const m = S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 6 });
+  const r = recipe("Sauce", 1, [ing("3", "can", "san marzano tomatoes"), ing("3", "cup", "water")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
   const { list } = S.createListForPlan();
-  assert.equal(findItem(list.id, "Rice").qty, 3);
+  const items = S.listItems(list.id);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].qty, 1, "3 cans x 4 servings must not become 12 cans");
+  assert.equal(items[0].unit, "");
   assert.equal(findItem(list.id, "Water"), undefined);
-  assert.equal(findItem(list.id, "Onion").qty, 2, "1.5 onions -> buy 2");
-  void m;
 });
 
 test("acceptance: manual items, purchases and edits survive regeneration", () => {
@@ -279,15 +263,15 @@ test("acceptance: manual items, purchases and edits survive regeneration", () =>
   assert.equal(tortilla.stale, true);
   const beef = findItem(list.id, "Ground beef");
   assert.equal(beef.qty, 3, "user-edited quantity preserved");
-  assert.equal(beef.genQty, 3);
-  assert.ok(changes.conflicts.length >= 1);
+  assert.equal(beef.qtyEdited, true);
+  assert.equal(beef.genQty, 1);
+  assert.equal(changes.conflicts.length, 0, "serving changes never touch shopping quantities");
   const onion = findItem(list.id, "Onion");
-  assert.equal(onion.qty, 2, "chili x2 needs 2 onions (down from 3)");
-  assert.equal(onion.purchased, true, "need went down, so the purchase still covers it");
+  assert.equal(onion.qty, 1);
+  assert.equal(onion.purchased, true, "doubling chili doesn't uncheck onions");
   const beans = findItem(list.id, "Kidney bean");
-  assert.equal(beans.qty, 2);
-  assert.equal(beans.purchased, false, "needed amount went up past what was bought");
-  assert.equal(beans.boughtQty, 1);
+  assert.equal(beans.qty, 1);
+  assert.equal(beans.purchased, true, "doubling chili doesn't uncheck beans");
   assert.ok(findItem(list.id, "Spaghetti"));
   assert.ok(changes.added.some((i) => i.name === "Spaghetti"));
   assert.equal(S.isListOutdated(list.id), false);
@@ -329,7 +313,7 @@ test("changing an item's category can be remembered in the ingredient catalog", 
 });
 
 // ---------- Pantry ----------
-test("pantry: flag mode marks items you have; subtract mode deducts compatible quantities", () => {
+test("pantry: flag mode marks items you have; legacy subtract mode becomes flag", () => {
   fresh();
   const r = recipe("Bake", 4, [ing("3", "cup", "flour"), ing("2", "tbsp", "olive oil"), ing("1", "tsp", "salt")]);
   S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
@@ -342,15 +326,15 @@ test("pantry: flag mode marks items you have; subtract mode deducts compatible q
   assert.equal(findItem(list.id, "Flour").inPantry, true);
 
   S.updateSettings({ pantryMode: "subtract" });
+  assert.equal(S.getDb().settings.pantryMode, "flag");
   S.applyRegenerate(list.id);
-  const flour = findItem(list.id, "Flour");
-  assert.equal(flour.inPantry, false);
-  assert.equal(flour.qty, 2, "3 cups needed - 1 cup on hand");
+  assert.equal(findItem(list.id, "Flour").inPantry, true);
+  assert.equal(findItem(list.id, "Flour").qty, 1);
 
   S.updateSettings({ pantryMode: "off" });
   S.applyRegenerate(list.id);
   assert.equal(findItem(list.id, "Salt").inPantry, false);
-  assert.equal(findItem(list.id, "Flour").qty, 3);
+  assert.equal(findItem(list.id, "Flour").inPantry, false);
 });
 
 test("ingredient catalog: aliases resolve, duplicates are rejected, learn from recipes", () => {
@@ -361,7 +345,8 @@ test("ingredient catalog: aliases resolve, duplicates are rejected, learn from r
   S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
   const { list } = S.createListForPlan();
   const sc = findItem(list.id, "Scallions");
-  assert.equal(sc.qty, 3);
+  assert.equal(sc.qty, 1);
+  assert.equal(S.listItems(list.id).filter((i) => i.ingredientId === g.id).length, 1, "aliases share one line");
   assert.equal(sc.ingredientId, g.id);
   assert.equal(S.learnFromRecipes(), 1);
   assert.ok(S.getDb().ingredients.some((x) => x.name === "Chicken broth" && x.category === "pantry"));
@@ -379,9 +364,10 @@ test("starter recipes parse cleanly and produce a sensible combined list", () =>
   S.addMeal({ day: WED, meal: "dinner", recipeId: bolo.id, servings: 6 });
   const { list } = S.createListForPlan();
   const beef = findItem(list.id, "Ground beef");
-  assert.equal(beef.qty, 2); assert.equal(beef.unit, "lb");
+  assert.equal(beef.qty, 1); assert.equal(beef.unit, "");
+  assert.equal(beef.sources.length, 2);
   const garlic = findItem(list.id, "Garlic");
-  assert.equal(garlic.qty, 5); assert.equal(garlic.unit, "clove");
+  assert.equal(garlic.qty, 1); assert.equal(garlic.unit, "");
 });
 
 // ---------- Backup & restore ----------
@@ -488,23 +474,33 @@ test("catalog edits don't duplicate or uncheck items already on a list", () => {
   assert.equal(ch.stale.length, 0);
   assert.equal(findItem(list.id, "Shallot").purchased, true);
   assert.equal(findItem(list.id, "Shallot").key.startsWith("i:"), true, "re-keyed to the catalog entry");
-  assert.equal(findItem(list.id, "Flour").unit, "g");
+  assert.equal(findItem(list.id, "Flour").purchased, true);
+  assert.equal(findItem(list.id, "Flour").unit, "");
 });
 
-test("pantry subtraction note is generated, not a user note", () => {
+test("lists generated with computed quantities migrate to one line per ingredient without losing checks", () => {
   fresh();
-  S.updateSettings({ pantryMode: "subtract" });
-  S.quickAddPantry("1/2 cup milk");
-  const r = recipe("Latte", 2, [ing("1", "cup", "milk")]);
-  const m = S.addMeal({ day: MON, meal: "breakfast", recipeId: r.id, servings: 2 });
+  const r = recipe("Sauce", 1, [ing("3", "can", "san marzano tomatoes"), ing("2", "clove", "garlic"), ing("1", "tbsp", "garlic"), ing("1", "lb", "pasta")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
   const { list } = S.createListForPlan();
-  const milk = findItem(list.id, "Milk");
-  assert.equal(milk.note, "");
-  assert.match(milk.pantryNote, /in pantry/);
-  S.removeMeal(m.id);
-  const ch = S.applyRegenerate(list.id);
-  assert.equal(ch.removed.length, 1);
-  assert.equal(ch.stale.length, 0);
+  const db = S.getDb();
+  const legacy = (name, key, qty, unit, extra) => M.normalizeItem(Object.assign({ listId: list.id, key, name, norm: Un.normalizeName(name), qty, unit, genQty: qty, genUnit: unit, category: "pantry" }, extra || {}));
+  const old = [
+    legacy("San marzano tomato", "n:" + Un.normalizeName("san marzano tomatoes") + "|count:can", 12, "can"),
+    legacy("Garlic", "n:garlic|count:clove", 8, "clove", { purchased: true }),
+    legacy("Garlic", "n:garlic|volume", 4, "tbsp"),
+    legacy("Pasta", "n:pasta|mass", 4, "lb", { qty: 2, qtyEdited: true }),
+  ];
+  const next = P.reconcile(old, P.generateForPlan(db), list.id);
+  const by = (n) => next.items.filter((i) => i.name.toLowerCase() === n);
+  const tom = by("san marzano tomato")[0];
+  assert.equal(tom.qty, 1); assert.equal(tom.unit, ""); assert.match(tom.key, /\|item$/); assert.equal(tom.change, "");
+  assert.equal(by("garlic").length, 1, "old per-unit garlic lines collapse to one");
+  assert.equal(by("garlic")[0].purchased, true, "checked items stay checked");
+  assert.equal(by("garlic")[0].qty, 8, "purchased amount kept");
+  assert.equal(by("pasta")[0].qty, 2, "edited amount kept");
+  assert.equal(next.changes.unpurchased.length, 0);
+  assert.equal(next.changes.conflicts.length, 0);
 });
 
 test("renaming the reusable plan retains meals and the shopping link", () => {
@@ -517,7 +513,7 @@ test("renaming the reusable plan retains meals and the shopping link", () => {
   assert.equal(list.menuId, S.getDb().menus[0].id);
 });
 
-test("both Saturdays remain independent in shopping quantities and verified backups", async () => {
+test("both Saturdays contribute to the shopping list and verified backups", async () => {
   fresh();
   const r = recipe("Pasta", 2, [ing("1", "lb", "pasta")]);
   S.addMeal({ day: "saturday", meal: "dinner", recipeId: r.id, servings: 2 });
@@ -526,10 +522,10 @@ test("both Saturdays remain independent in shopping quantities and verified back
   S.togglePurchased(pasta.id);
   S.addMeal({ day: "following-saturday", meal: "dinner", recipeId: r.id, servings: 4 });
   assert.equal(P.planStats(S.getDb()).filled, 2);
-  assert.equal(S.isListOutdated(list.id), true);
+  assert.equal(S.isListOutdated(list.id), false, "nothing new to buy");
   S.applyRegenerate(list.id);
-  assert.equal(findItem(list.id, "Pasta").qty, 3);
-  assert.equal(findItem(list.id, "Pasta").purchased, false, "increased quantities uncheck the purchase");
+  assert.equal(findItem(list.id, "Pasta").qty, 1);
+  assert.equal(findItem(list.id, "Pasta").purchased, true, "more servings never uncheck a purchase");
   assert.deepEqual(findItem(list.id, "Pasta").sources.map((s) => s.day), ["saturday", "following-saturday"]);
   const restored = await Y.readBackup(await Y.createSlice(S.getDb()));
   assert.equal(restored.integrity, "verified");

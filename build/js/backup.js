@@ -49,7 +49,6 @@
     const s = S.getDb().settings;
     el.settingsTitle.textContent = H.ui.phoneChecklist ? "Backup & restore" : "Settings";
     H.updateThemePicker();
-    el.sMeasure.value = s.measurement;
     el.sServB.value = s.servings.breakfast;
     el.sServL.value = s.servings.lunch;
     el.sServD.value = s.servings.dinner;
@@ -72,7 +71,6 @@
   }
   function savePlanning() {
     H.attempt(() => S.updateSettings({
-      measurement: el.sMeasure.value,
       servings: { breakfast: el.sServB.value, lunch: el.sServL.value, dinner: el.sServD.value },
     }));
   }

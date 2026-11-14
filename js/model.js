@@ -77,7 +77,7 @@
       categoryOrder: Array.from(new Set(order)),
       purchased: oneOf(o.purchased, ["bottom", "inline", "hide"], d.purchased),
       includeOptional: o.includeOptional === undefined ? d.includeOptional : !!o.includeOptional,
-      pantryMode: oneOf(o.pantryMode, ["off", "flag", "subtract"], d.pantryMode),
+      pantryMode: oneOf(o.pantryMode === "subtract" ? "flag" : o.pantryMode, ["off", "flag"], d.pantryMode),
       autoBackup: !!o.autoBackup,
       cloudPhotos: o.cloudPhotos === undefined ? d.cloudPhotos : !!o.cloudPhotos,
     };

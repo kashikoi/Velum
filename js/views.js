@@ -140,7 +140,7 @@
     return `<div class="empty">
       <div class="empty__icon">🥘</div>
       <h2 class="empty__title">Welcome to Velum</h2>
-      <p class="empty__text">Keep the recipes you love, plan breakfast, lunch and dinner from Saturday through Saturday, and Velum adds up exactly what to buy &mdash; combined, converted and sorted by aisle. Your plan stays until you change it.</p>
+      <p class="empty__text">Keep the recipes you love, plan breakfast, lunch and dinner from Saturday through Saturday, and Velum lists what to buy &mdash; one line per ingredient, sorted by aisle, with quantities you set yourself. Your plan stays until you change it.</p>
       <div class="empty__actions">
         <button type="button" class="btn btn--beacon" data-act="new-recipe">+ Add your first recipe</button>
         <button type="button" class="btn btn--ghost" data-act="starter">Load starter recipes</button>
@@ -522,7 +522,7 @@
       <button type="button" class="seg__btn${tab === "pantry" ? " is-active" : ""}" data-act="pantry-tab" data-val="pantry" role="tab" aria-selected="${tab === "pantry"}">🧺 Pantry (${db.pantry.filter((p) => p.available).length})</button>
       <button type="button" class="seg__btn${tab === "catalog" ? " is-active" : ""}" data-act="pantry-tab" data-val="catalog" role="tab" aria-selected="${tab === "catalog"}">🏷 Ingredient catalog (${db.ingredients.length})</button></div>`;
     if (tab === "catalog") return pageHead("Ingredients & Pantry", "Teach Velum your ingredients so lists stay tidy.", tabs) + catalog(db);
-    const modeText = { off: "The pantry is currently ignored when building lists.", flag: "Things you have are set aside in an \"Already in your pantry\" section of your list.", subtract: "Known amounts are subtracted from what recipes need; the rest are set aside." }[db.settings.pantryMode];
+    const modeText = { off: "The pantry is currently ignored when building lists.", flag: "Things you have are set aside in an \"Already in your pantry\" section of your list." }[db.settings.pantryMode];
     const have = new Set(db.pantry.map((p) => Un.normalizeName(p.name)));
     const staples = STAPLES.filter((s) => !have.has(Un.normalizeName(s)));
     const rows = db.pantry.slice().sort((a, b) => (b.available - a.available) || a.name.localeCompare(b.name)).map((p) => `<li class="pantry-row${p.available ? "" : " is-out"}">
