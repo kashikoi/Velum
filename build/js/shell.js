@@ -7,7 +7,7 @@
   const W = V.views;
   const esc = U.escapeHtml;
 
-  const APP_VERSION = "2026.11.14.1";
+  const APP_VERSION = "2026.11.14.2";
   const THEME_KEY = "velum_cloud_theme";
   const ACTIVE_THEME_KEY = "velum_cloud_active_theme";
   const THEMES = ["day", "twilight", "night"];
@@ -17,7 +17,6 @@
   const ui = {
     route: { name: "home", arg: null, query: {} },
     lib: { q: "", cat: "all", fav: false, cuisine: "", tag: "", sort: "recent", archived: false },
-    recipeServings: new Map(),
     cookChecks: new Set(),
     cooking: false,
     arrange: false,
@@ -250,8 +249,7 @@
         const rec = db.recipes.find((x) => x.id === r.arg);
         if (!rec) return `<div class="empty"><div class="empty__icon">🔍</div><h2 class="empty__title">Recipe not found</h2><p class="empty__text">It may have been deleted.</p><a class="btn btn--beacon" href="#/recipes">Back to recipes</a></div>`;
         const meal = r.query.meal ? db.meals.find((m) => m.id === r.query.meal && m.recipeId === rec.id) : null;
-        const servings = ui.recipeServings.get(rec.id) || (meal ? meal.servings : rec.servings);
-        return W.recipeDetail(db, ui, rec, { servings, mealId: meal ? meal.id : null });
+        return W.recipeDetail(db, ui, rec, { mealId: meal ? meal.id : null });
       }
       case "shopping": {
         const list = currentList(db);

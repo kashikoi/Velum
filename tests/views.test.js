@@ -35,15 +35,15 @@ test("plan and day views use eight fixed named days and no date controls", () =>
 
 test("days are rows with three meal columns and occupied slots can hold multiple detailed meals", () => {
   S.init();
-  const first = S.createRecipe({ name: "Chicken sandwich with roasted vegetables", servings: 1 });
-  const second = S.createRecipe({ name: "Oatmeal with berries and yogurt", servings: 1 });
-  S.addMeal({ day: "monday", meal: "breakfast", recipeId: first.id, servings: 1, note: "For Alex" });
-  S.addMeal({ day: "monday", meal: "breakfast", recipeId: second.id, servings: 1, note: "For Sam" });
+  const first = S.createRecipe({ name: "Chicken sandwich with roasted vegetables" });
+  const second = S.createRecipe({ name: "Oatmeal with berries and yogurt" });
+  S.addMeal({ day: "monday", meal: "breakfast", recipeId: first.id, note: "For Alex" });
+  S.addMeal({ day: "monday", meal: "breakfast", recipeId: second.id, note: "For Sam" });
   const html = W.menuPlan(S.getDb(), { canDrag: true });
   const cells = [...html.matchAll(/data-drop-day="([^"]+)" data-drop-meal="([^"]+)"/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(cells, M.PLAN_DAYS.flatMap((day) => M.MEAL_TYPES.map((meal) => [day, meal])));
-  assert.match(html, /Serves 1 · For Alex/);
-  assert.match(html, /Serves 1 · For Sam/);
+  assert.match(html, /For Alex/);
+  assert.match(html, /For Sam/);
   assert.match(html, /Chicken sandwich with roasted vegetables/);
   assert.match(html, /Oatmeal with berries and yogurt/);
   assert.equal((html.match(/\+ Add another/g) || []).length, 2, "desktop and mobile occupied slots both offer another meal");

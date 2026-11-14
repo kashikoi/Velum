@@ -6,16 +6,6 @@
   const Un = V.units;
   const M = V.model;
 
-  // ---------- Scaling ----------
-  function scaleFactor(recipe, servings) {
-    const base = recipe && recipe.servings > 0 ? recipe.servings : 1;
-    return servings > 0 ? servings / base : 1;
-  }
-  function scaledIngredients(recipe, servings) {
-    const f = scaleFactor(recipe, servings);
-    return recipe.ingredients.map((g) => Object.assign({}, g, { qty: g.qty == null ? null : g.qty * f }));
-  }
-
   // ---------- Reusable plan ----------
   function menuForPlan(db) { return db.menus[0] || null; }
   function slotMeals(db, day, meal) {
@@ -50,7 +40,7 @@
   }
 
   // ---------- Requirements ----------
-  // Every scaled ingredient line needed by all eight days of the reusable plan.
+  // Every ingredient line needed by all eight days of the reusable plan.
   function requirementsForPlan(db, opts) {
     const o = opts || {};
     const includeOptional = o.includeOptional !== undefined ? o.includeOptional : db.settings.includeOptional;
@@ -59,7 +49,7 @@
     db.meals.forEach((meal) => {
       const r = meal.recipeId && recipes.get(meal.recipeId);
       if (!r) return;
-      scaledIngredients(r, meal.servings).forEach((g) => {
+      r.ingredients.forEach((g) => {
         if (g.optional && !includeOptional) return;
         if (Un.isNeverShop(g.name)) return;
         out.push({
@@ -275,7 +265,7 @@
   }
 
   V.planner = {
-    scaleFactor, scaledIngredients,     menuForPlan, slotMeals, planStats,
+    menuForPlan, slotMeals, planStats,
     catalogIndex, resolveIngredient, nameKeyFor, requirementsForPlan, aggregate, applyPantry, generateForPlan, signature, reconcile,
   };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);

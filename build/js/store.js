@@ -56,8 +56,6 @@
   // ---------- Recipes ----------
   function validateRecipe(f) {
     if (!U.str(f.name, 160)) fail("Give the recipe a name.");
-    const servings = U.numOrNull(f.servings);
-    if (servings == null || servings <= 0) fail("Servings must be a number greater than zero.");
     ["prepMin", "cookMin", "totalMin"].forEach((k) => {
       const n = U.numOrNull(f[k]);
       if (f[k] !== "" && f[k] != null && (n == null || n < 0)) fail("Times must be zero or more minutes.");
@@ -69,7 +67,7 @@
   function recipeFields(f) {
     return {
       name: f.name, description: f.description, imageId: f.imageId || null, categories: f.categories, cuisine: f.cuisine,
-      prepMin: f.prepMin, cookMin: f.cookMin, totalMin: f.totalMin, servings: f.servings, difficulty: f.difficulty,
+      prepMin: f.prepMin, cookMin: f.cookMin, totalMin: f.totalMin, difficulty: f.difficulty,
       tags: Array.isArray(f.tags) ? f.tags : String(f.tags || "").split(","),
       ingredients: (f.ingredients || []).filter((g) => U.str(g.name)).map((g, i) => ({
         id: g.id, ingredientId: g.ingredientId, name: g.name, qty: g.qtyText !== undefined ? Un.parseQuantity(g.qtyText) : g.qty,
@@ -168,10 +166,9 @@
       const r = find("recipes", f.recipeId, "recipe");
       if (r.archived) fail("That recipe is archived. Restore it from the library first.");
     } else if (!U.str(f.title)) fail("Pick a recipe or type a short note like \"Leftovers\".");
-    const servings = U.numOrNull(f.servings) || db.settings.servings[f.meal];
     const meal = M.normalizeMeal({
       day: f.day, meal: f.meal, recipeId: f.recipeId || null, title: f.recipeId ? "" : f.title,
-      servings, note: f.note, sortOrder: nextSort(P.slotMeals(db, f.day, f.meal)),
+      note: f.note, sortOrder: nextSort(P.slotMeals(db, f.day, f.meal)),
     });
     db.meals.push(meal);
     if (meal.recipeId) markUsed(meal.recipeId);
@@ -198,11 +195,6 @@
       }
     }
     if (p.title !== undefined && !m.recipeId) m.title = U.str(p.title, 160) || m.title;
-    if (p.servings !== undefined) {
-      const s = U.numOrNull(p.servings);
-      if (s == null || s <= 0) fail("Servings must be greater than zero.");
-      m.servings = U.clamp(s, 0.25, 500);
-    }
     if (p.note !== undefined) m.note = U.str(p.note, 500);
     if (p.done !== undefined) m.done = !!p.done;
     if (p.day !== undefined || p.meal !== undefined) {

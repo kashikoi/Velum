@@ -49,9 +49,6 @@
     const s = S.getDb().settings;
     el.settingsTitle.textContent = H.ui.phoneChecklist ? "Backup & restore" : "Settings";
     H.updateThemePicker();
-    el.sServB.value = s.servings.breakfast;
-    el.sServL.value = s.servings.lunch;
-    el.sServD.value = s.servings.dinner;
     el.sGroup.value = s.groupBy;
     el.sPurchased.value = s.purchased;
     el.sPantry.value = s.pantryMode;
@@ -68,11 +65,6 @@
     el.sAisles.innerHTML = order.map((c, i) => `<li><span>${M.GROCERY_ICON[c]} ${M.GROCERY_LABEL[c]}</span>
       <button type="button" class="mini-btn" data-aisle="${c}" data-delta="-1" aria-label="Move ${M.GROCERY_LABEL[c]} earlier"${i === 0 ? " disabled" : ""}>▲</button>
       <button type="button" class="mini-btn" data-aisle="${c}" data-delta="1" aria-label="Move ${M.GROCERY_LABEL[c]} later"${i === order.length - 1 ? " disabled" : ""}>▼</button></li>`).join("");
-  }
-  function savePlanning() {
-    H.attempt(() => S.updateSettings({
-      servings: { breakfast: el.sServB.value, lunch: el.sServL.value, dinner: el.sServD.value },
-    }));
   }
   function saveShopping() {
     H.attempt(() => S.updateSettings({ groupBy: el.sGroup.value, purchased: el.sPurchased.value, pantryMode: el.sPantry.value, includeOptional: el.sOptional.checked }));
@@ -355,7 +347,6 @@
   function bind() {
     el.settingsBtn.addEventListener("click", openSettings);
     el.themePicker.addEventListener("click", (e) => { const chip = e.target.closest(".theme-chip"); if (chip) H.setTheme(chip.dataset.themeVal); });
-    el.planningForm.addEventListener("change", savePlanning);
     el.planningForm.addEventListener("submit", (e) => e.preventDefault());
     el.shoppingForm.addEventListener("change", (e) => { if (!e.target.closest("#sAisles")) saveShopping(); });
     el.shoppingForm.addEventListener("submit", (e) => e.preventDefault());

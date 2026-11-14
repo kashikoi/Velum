@@ -43,7 +43,6 @@
     el.rPrep.value = r && r.prepMin != null ? r.prepMin : "";
     el.rCook.value = r && r.cookMin != null ? r.cookMin : "";
     el.rTotal.value = r && r.totalMin != null ? r.totalMin : "";
-    el.rServings.value = r ? r.servings : (opts && opts.category && db.settings.servings[opts.category]) || 4;
     el.rCuisine.value = r ? r.cuisine : "";
     el.rDifficulty.value = r ? r.difficulty : "";
     el.rTags.value = r ? r.tags.join(", ") : "";
@@ -174,7 +173,7 @@
   function collectRecipe() {
     return {
       name: el.rName.value, description: el.rDesc.value, categories: Array.from(draft.categories),
-      prepMin: el.rPrep.value, cookMin: el.rCook.value, totalMin: el.rTotal.value, servings: el.rServings.value,
+      prepMin: el.rPrep.value, cookMin: el.rCook.value, totalMin: el.rTotal.value,
       cuisine: el.rCuisine.value, difficulty: el.rDifficulty.value, tags: el.rTags.value,
       ingredients: draft.ingredients.filter((g) => g.name.trim()).map((g) => ({
         id: g.id, ingredientId: g.ingredientId, qtyText: g.qtyText.trim(), unit: Un.normalizeUnit(g.unit), name: g.name, prep: g.prep, group: g.group, optional: g.optional,
@@ -253,7 +252,7 @@
     const list = pickerRecipes();
     const db = S.getDb();
     el.pickerList.innerHTML = list.length ? list.map((r) => {
-      const meta = [r.categories.map((c) => M.CATEGORY_LABEL[c]).join(", "), M.totalTime(r) ? U.fmtMinutes(M.totalTime(r)) : "", "serves " + Un.formatQty(r.servings, "")].filter(Boolean).join(" · ");
+      const meta = [r.categories.map((c) => M.CATEGORY_LABEL[c]).join(", "), M.totalTime(r) ? U.fmtMinutes(M.totalTime(r)) : ""].filter(Boolean).join(" · ");
       return `<li><button type="button" class="pick-row" data-pick="${esc(r.id)}">${W.thumb(r)}<span class="pick-row__text"><span class="pick-row__name">${esc(r.name)} ${r.favorite ? '<span class="pick-row__fav">♥</span>' : ""}</span><span class="pick-row__meta">${esc(meta)}</span></span></button></li>`;
     }).join("") : `<li class="empty-note" style="padding:14px">${db.recipes.length ? "No recipes match." : "No recipes yet — create one below, or add a quick note."}</li>`;
   }
@@ -288,24 +287,17 @@
     const r = m.recipeId && db.recipes.find((x) => x.id === m.recipeId);
     el.mealTitle.textContent = M.DAY_LABEL[m.day] + " · " + M.MEAL_LABEL[m.meal];
     el.mHead.innerHTML = r
-      ? `${W.thumb(r, "lg")}<div><div class="meal-head__name">${esc(r.name)}</div><div class="meal-head__meta">Recipe serves ${esc(Un.formatQty(r.servings, ""))}${M.totalTime(r) ? " · " + U.fmtMinutes(M.totalTime(r)) : ""}${r.archived ? " · archived" : ""}</div></div>`
+      ? `${W.thumb(r, "lg")}<div><div class="meal-head__name">${esc(r.name)}</div><div class="meal-head__meta">${[M.totalTime(r) ? U.fmtMinutes(M.totalTime(r)) : "", r.archived ? "archived" : ""].filter(Boolean).join(" · ")}</div></div>`
       : `<span class="thumb thumb--lg">📝</span><div><div class="meal-head__name">${esc(m.title)}</div><div class="meal-head__meta">A note, not a recipe — nothing is added to the shopping list.</div></div>`;
     el.mTitleWrap.hidden = !!r;
     el.mTitle.value = r ? "" : m.title;
-    el.mServingsWrap.hidden = !r;
-    el.mServings.value = m.servings;
-    updateServingsHint(r);
     el.mNote.value = m.note;
     el.mDay.innerHTML = W.dayOptions(m.day);
     el.mMeal.value = m.meal;
     el.mDone.checked = m.done;
     el.mView.hidden = !r;
     el.mError.hidden = true;
-    H.openModal("mealModal", r ? el.mServings : el.mTitle);
-  }
-  function updateServingsHint(r) {
-    const n = U.numOrNull(el.mServings.value);
-    el.mServingsHint.textContent = r && n > 0 ? (Math.abs(n - r.servings) < 1e-9 ? "Same as the recipe." : "Ingredients scale ×" + U.round(n / r.servings, 2) + " for this meal only.") : "";
+    H.openModal("mealModal", r ? el.mNote : el.mTitle);
   }
   function mealRecipe() {
     const db = S.getDb();
@@ -316,7 +308,7 @@
     e.preventDefault();
     const r = mealRecipe();
     const patch = { note: el.mNote.value, done: el.mDone.checked, day: el.mDay.value, meal: el.mMeal.value };
-    if (r) patch.servings = el.mServings.value; else patch.title = el.mTitle.value;
+    if (!r) patch.title = el.mTitle.value;
     const res = H.attempt(() => S.updateMeal(mealId, patch), el.mError);
     if (res.ok) { H.closeModal("mealModal"); H.toast("Meal updated."); }
   }
@@ -484,14 +476,6 @@
 
     // Meal dialog
     el.mealForm.addEventListener("submit", saveMeal);
-    el.mealForm.addEventListener("click", (e) => {
-      const b = e.target.closest("[data-step]");
-      if (!b) return;
-      const n = U.numOrNull(el.mServings.value) || 0;
-      el.mServings.value = Math.max(1, Math.round(n) + +b.dataset.step);
-      updateServingsHint(mealRecipe());
-    });
-    el.mServings.addEventListener("input", () => updateServingsHint(mealRecipe()));
     el.mRemove.addEventListener("click", removeMealFromModal);
     el.mCopy.addEventListener("click", copyMealFromModal);
     el.mReplace.addEventListener("click", () => {

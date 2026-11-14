@@ -34,8 +34,6 @@
 
   function defaultSettings() {
     return {
-      servings: { breakfast: 2, lunch: 2, dinner: 4 },
-      measurement: "us",
       groupBy: "category",
       categoryOrder: GROCERY_CATEGORIES.slice(),
       purchased: "bottom",
@@ -58,21 +56,14 @@
   const obj = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
   const oneOf = (v, list, dflt) => (list.indexOf(v) >= 0 ? v : dflt);
   const ts = (v) => (typeof v === "string" && !Number.isNaN(Date.parse(v)) ? v : null);
-  const posNum = (v, dflt) => { const n = U.numOrNull(v); return n != null && n > 0 ? n : dflt; };
   const nonNeg = (v) => { const n = U.numOrNull(v); return n != null && n >= 0 ? n : null; };
   const id = (v) => (typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v) ? v : U.uid());
 
   function normalizeSettings(s) {
-    const o = obj(s), d = defaultSettings(), sv = obj(o.servings);
+    const o = obj(s), d = defaultSettings();
     const order = arr(o.categoryOrder).filter((c) => GROCERY_CATEGORIES.indexOf(c) >= 0);
     GROCERY_CATEGORIES.forEach((c) => { if (order.indexOf(c) < 0) order.push(c); });
     return {
-      servings: {
-        breakfast: U.clamp(Math.round(posNum(sv.breakfast, d.servings.breakfast)), 1, 50),
-        lunch: U.clamp(Math.round(posNum(sv.lunch, d.servings.lunch)), 1, 50),
-        dinner: U.clamp(Math.round(posNum(sv.dinner, d.servings.dinner)), 1, 50),
-      },
-      measurement: oneOf(o.measurement, ["us", "metric"], d.measurement),
       groupBy: oneOf(o.groupBy, ["category", "none"], d.groupBy),
       categoryOrder: Array.from(new Set(order)),
       purchased: oneOf(o.purchased, ["bottom", "inline", "hide"], d.purchased),
@@ -115,7 +106,6 @@
       prepMin: nonNeg(o.prepMin),
       cookMin: nonNeg(o.cookMin),
       totalMin: nonNeg(o.totalMin),
-      servings: U.clamp(posNum(o.servings, 4), 0.25, 500),
       difficulty: oneOf(o.difficulty, DIFFICULTIES, ""),
       tags: Array.from(new Set(arr(o.tags).map((t) => U.str(t, 40).toLowerCase()).filter(Boolean))).slice(0, 30),
       ingredients: ings,
@@ -153,7 +143,6 @@
       meal: oneOf(o.meal, MEAL_TYPES, "dinner"),
       recipeId: typeof o.recipeId === "string" && o.recipeId ? o.recipeId : null,
       title: U.str(o.title, 160),
-      servings: U.clamp(posNum(o.servings, 2), 0.25, 500),
       note: U.str(o.note, 500),
       done: !!o.done,
       sortOrder: Number.isFinite(+o.sortOrder) ? +o.sortOrder : i,

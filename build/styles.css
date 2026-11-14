@@ -1421,8 +1421,6 @@ html.day .chip.is-on { color: var(--beacon); }
 html.day .steps li::before { color: var(--beacon); }
 .steps li.is-done { opacity: 0.45; }
 .steps li.is-current::before { background: var(--beacon); color: var(--beacon-ink); }
-.scaler { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.scaler__note { font-size: 0.76rem; color: var(--ink-faint); }
 .recipe-notes { white-space: pre-wrap; line-height: 1.55; color: var(--ink-soft); margin: 0; }
 .recipe-foot { font-size: 0.76rem; color: var(--ink-faint); display: flex; gap: 14px; flex-wrap: wrap; }
 .archived-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1430,14 +1428,6 @@ html.cooking .canvas { padding: 22px; }
 html.cooking .steps li { font-size: 1.25rem; line-height: 1.65; }
 html.cooking .ing-line { font-size: 1.1rem; }
 html.cooking .recipe-hero { display: none; }
-
-/* Stepper */
-.stepper { display: inline-flex; align-items: stretch; border-radius: var(--radius-sm); border: 1px solid var(--glass-border-strong); overflow: hidden; background: var(--glass-hi); }
-.stepper__btn { width: 38px; border: none; background: none; color: var(--ink); font-size: 1.1rem; font-weight: 700; cursor: pointer; }
-.stepper__btn:hover { background: var(--amber-wash); }
-.stepper__input { width: 64px; border: none; border-left: 1px solid var(--glass-border); border-right: 1px solid var(--glass-border); background: none; color: var(--ink); text-align: center; font-family: var(--font-ui); font-size: 0.95rem; font-weight: 700; padding: 7px 4px; -moz-appearance: textfield; }
-.stepper__input::-webkit-outer-spin-button, .stepper__input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.stepper__input:focus { outline: none; }
 
 /* Recipe editor */
 .recipe-form__top { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }

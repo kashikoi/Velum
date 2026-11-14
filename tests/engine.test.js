@@ -17,8 +17,8 @@ const ing = (qtyText, unit, name, extra) => Object.assign({ qtyText, unit, name 
 const MON = "monday";
 const WED = "wednesday";
 
-function recipe(name, servings, ingredients, extra) {
-  return S.createRecipe(Object.assign({ name, servings, categories: ["dinner"], ingredients, steps: ["Cook it."] }, extra || {}));
+function recipe(name, ingredients, extra) {
+  return S.createRecipe(Object.assign({ name, categories: ["dinner"], ingredients, steps: ["Cook it."] }, extra || {}));
 }
 function findItem(listId, name) { return S.listItems(listId).find((i) => i.name.toLowerCase() === name.toLowerCase()); }
 
@@ -63,32 +63,29 @@ test("grocery categories are guessed sensibly", () => {
 });
 
 // ---------- Recipe management ----------
-test("acceptance: create, edit, scale, search, favorite a recipe", () => {
+test("acceptance: create, edit, search, favorite a recipe", () => {
   fresh();
-  const r = recipe("Chicken Tacos", 4, [ing("2", "cup", "flour"), ing("1", "lb", "chicken"), ing("", "", "salt", { prep: "to taste" })],
+  const r = recipe("Chicken Tacos", [ing("2", "cup", "flour"), ing("1", "lb", "chicken"), ing("", "", "salt", { prep: "to taste" })],
     { tags: "weeknight, Mexican", prepMin: 10, cookMin: 20 });
   assert.equal(r.ingredients.length, 3);
   assert.equal(r.ingredients[2].qty, null);
   assert.equal(M.totalTime(r), 30);
   assert.deepEqual(r.tags, ["weeknight", "mexican"]);
 
-  const scaled = P.scaledIngredients(r, 8);
-  assert.equal(scaled[0].qty, 4);
-  assert.equal(scaled[1].qty, 2);
-  assert.equal(S.getDb().recipes[0].ingredients[0].qty, 2, "scaling must not modify the recipe");
+  assert.equal(r.ingredients[0].qty, 2);
+  assert.equal("servings" in r, false, "recipes have no servings");
 
   const edited = S.updateRecipe(r.id, Object.assign({}, r, { name: "Spicy Chicken Tacos", ingredients: r.ingredients.map((g) => Object.assign({}, g, { qtyText: g.qty == null ? "" : String(g.qty) })) }));
   assert.equal(edited.name, "Spicy Chicken Tacos");
   assert.equal(edited.createdAt, r.createdAt);
   assert.equal(S.toggleFavorite(r.id), true);
-  assert.throws(() => recipe("", 4, []), S.ValidationError);
-  assert.throws(() => recipe("Bad", 0, []), S.ValidationError);
-  assert.throws(() => recipe("Bad qty", 2, [ing("lots", "", "rice")]), /Couldn't read the quantity/);
+  assert.throws(() => recipe("", []), S.ValidationError);
+  assert.throws(() => recipe("Bad qty", [ing("lots", "", "rice")]), /Couldn't read the quantity/);
 });
 
 test("duplicating a recipe makes an independent copy", () => {
   fresh();
-  const r = recipe("Chicken Tacos", 4, [ing("1", "lb", "chicken")]);
+  const r = recipe("Chicken Tacos", [ing("1", "lb", "chicken")]);
   const c = S.duplicateRecipe(r.id);
   assert.notEqual(c.id, r.id);
   assert.notEqual(c.ingredients[0].id, r.ingredients[0].id);
@@ -97,8 +94,8 @@ test("duplicating a recipe makes an independent copy", () => {
 
 test("deleting a recipe in the plan archives it instead of erasing planned meals", () => {
   fresh();
-  const r = recipe("Chili", 4, [ing("1", "lb", "ground beef")]);
-  const unused = recipe("Soup", 4, []);
+  const r = recipe("Chili", [ing("1", "lb", "ground beef")]);
+  const unused = recipe("Soup", []);
   S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   assert.equal(S.deleteRecipe(r.id).archived, true);
   assert.equal(S.getDb().recipes.find((x) => x.id === r.id).archived, true);
@@ -109,18 +106,18 @@ test("deleting a recipe in the plan archives it instead of erasing planned meals
 });
 
 // ---------- Reusable planning ----------
-test("acceptance: eight-day plan and servings persist across reloads", () => {
+test("acceptance: eight-day plan persists across reloads", () => {
   const st = fresh();
-  const b = recipe("Oats", 2, [ing("1", "cup", "oats")], { categories: ["breakfast"] });
-  const l = recipe("Salad", 2, [ing("1", "head", "lettuce")], { categories: ["lunch"] });
-  const d = recipe("Chili", 4, [ing("1", "lb", "ground beef")]);
+  const b = recipe("Oats", [ing("1", "cup", "oats")], { categories: ["breakfast"] });
+  const l = recipe("Salad", [ing("1", "head", "lettuce")], { categories: ["lunch"] });
+  const d = recipe("Chili", [ing("1", "lb", "ground beef")]);
   M.PLAN_DAYS.forEach((day) => {
     S.addMeal({ day, meal: "breakfast", recipeId: b.id });
     S.addMeal({ day, meal: "lunch", recipeId: l.id });
   });
   const dinner = S.addMeal({ day: MON, meal: "dinner", recipeId: d.id });
-  assert.equal(dinner.servings, 4, "defaults to the dinner serving setting");
-  S.updateMeal(dinner.id, { servings: 6 });
+  assert.equal("servings" in dinner, false, "meals have no servings");
+  S.updateMeal(dinner.id, { note: "Extra spicy" });
   S.addMeal({ day: "following-saturday", meal: "dinner", title: "Dinner out" });
 
   S.load(); // simulate a reload from storage
@@ -129,7 +126,7 @@ test("acceptance: eight-day plan and servings persist across reloads", () => {
   assert.equal(stats.filled, 18);
   assert.equal(stats.slots, 24);
   assert.equal(stats.unplanned, 6);
-  assert.equal(S.getDb().meals.find((m) => m.id === dinner.id).servings, 6);
+  assert.equal(S.getDb().meals.find((m) => m.id === dinner.id).note, "Extra spicy");
   assert.equal(P.slotMeals(S.getDb(), "following-saturday", "dinner").length, 1);
   assert.equal(S.getDb().menus.length, 1);
   assert.ok(S.getDb().meals.every((m) => !("date" in m)));
@@ -138,8 +135,8 @@ test("acceptance: eight-day plan and servings persist across reloads", () => {
 
 test("copy and move meals between named days, clear individual days and the whole plan", () => {
   fresh();
-  const r = recipe("Chili", 4, [ing("1", "lb", "ground beef")]);
-  const m = S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
+  const r = recipe("Chili", [ing("1", "lb", "ground beef")]);
+  const m = S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   S.addMeal({ day: MON, meal: "lunch", title: "Leftovers" });
   S.moveMeal(m.id, WED, "lunch");
   assert.equal(S.getDb().meals.find((x) => x.id === m.id).day, WED);
@@ -171,10 +168,10 @@ test("the plan has one stable menu and shopping list independent of old week set
 // ---------- Shopping lists ----------
 test("acceptance: spec example consolidates ground beef, onions and olive oil into one line each", () => {
   fresh();
-  const mon = recipe("Monday dinner", 4, [ing("1", "lb", "ground beef"), ing("2", "", "onions"), ing("1", "tbsp", "olive oil")]);
-  const wed = recipe("Wednesday dinner", 4, [ing("1.5", "lb", "ground beef"), ing("1", "", "onion"), ing("2", "tbsp", "olive oil")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: mon.id, servings: 4 });
-  S.addMeal({ day: WED, meal: "dinner", recipeId: wed.id, servings: 4 });
+  const mon = recipe("Monday dinner", [ing("1", "lb", "ground beef"), ing("2", "", "onions"), ing("1", "tbsp", "olive oil")]);
+  const wed = recipe("Wednesday dinner", [ing("1.5", "lb", "ground beef"), ing("1", "", "onion"), ing("2", "tbsp", "olive oil")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: mon.id });
+  S.addMeal({ day: WED, meal: "dinner", recipeId: wed.id });
   const { list } = S.createListForPlan();
   const items = S.listItems(list.id);
   assert.equal(items.length, 3, "no duplicate entries");
@@ -212,25 +209,25 @@ test("meaningfully different ingredients are never combined", () => {
   assert.equal(garlic.qty, 1); assert.equal(garlic.unit, "");
 });
 
-test("servings don't multiply shopping quantities; water is never shopped", () => {
+test("recipe amounts don't become shopping quantities; water is never shopped", () => {
   fresh();
-  const r = recipe("Sauce", 1, [ing("3", "can", "san marzano tomatoes"), ing("3", "cup", "water")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
+  const r = recipe("Sauce", [ing("3", "can", "san marzano tomatoes"), ing("3", "cup", "water")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   const { list } = S.createListForPlan();
   const items = S.listItems(list.id);
   assert.equal(items.length, 1);
-  assert.equal(items[0].qty, 1, "3 cans x 4 servings must not become 12 cans");
+  assert.equal(items[0].qty, 1, "3 cans in the recipe is still one line at 1");
   assert.equal(items[0].unit, "");
   assert.equal(findItem(list.id, "Water"), undefined);
 });
 
 test("acceptance: manual items, purchases and edits survive regeneration", () => {
   fresh();
-  const tacos = recipe("Tacos", 4, [ing("1", "lb", "ground beef"), ing("2", "", "onions"), ing("8", "", "tortillas")]);
-  const chili = recipe("Chili", 4, [ing("1.5", "lb", "ground beef"), ing("1", "", "onion"), ing("1", "can", "kidney beans")]);
-  const pasta = recipe("Pasta", 4, [ing("1", "lb", "spaghetti")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: tacos.id, servings: 4 });
-  const chiliMeal = S.addMeal({ day: WED, meal: "dinner", recipeId: chili.id, servings: 4 });
+  const tacos = recipe("Tacos", [ing("1", "lb", "ground beef"), ing("2", "", "onions"), ing("8", "", "tortillas")]);
+  const chili = recipe("Chili", [ing("1.5", "lb", "ground beef"), ing("1", "", "onion"), ing("1", "can", "kidney beans")]);
+  const pasta = recipe("Pasta", [ing("1", "lb", "spaghetti")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: tacos.id });
+  const chiliMeal = S.addMeal({ day: WED, meal: "dinner", recipeId: chili.id });
   const { list } = S.createListForPlan();
   assert.equal(S.isListOutdated(list.id), false);
 
@@ -245,9 +242,9 @@ test("acceptance: manual items, purchases and edits survive regeneration", () =>
   S.updateItem(findItem(list.id, "Ground beef").id, { qtyText: "3" });
 
   // Menu changes: chili doubled, tacos removed, pasta added.
-  S.updateMeal(chiliMeal.id, { servings: 8 });
+  S.updateMeal(chiliMeal.id, { note: "double batch" });
   S.removeMeal(S.getDb().meals.find((m) => m.recipeId === tacos.id).id);
-  S.addMeal({ day: "friday", meal: "dinner", recipeId: pasta.id, servings: 4 });
+  S.addMeal({ day: "friday", meal: "dinner", recipeId: pasta.id });
   assert.equal(S.isListOutdated(list.id), true);
 
   const preview = S.previewRegenerate(list.id);
@@ -265,13 +262,13 @@ test("acceptance: manual items, purchases and edits survive regeneration", () =>
   assert.equal(beef.qty, 3, "user-edited quantity preserved");
   assert.equal(beef.qtyEdited, true);
   assert.equal(beef.genQty, 1);
-  assert.equal(changes.conflicts.length, 0, "serving changes never touch shopping quantities");
+  assert.equal(changes.conflicts.length, 0, "menu changes never touch shopping quantities");
   const onion = findItem(list.id, "Onion");
   assert.equal(onion.qty, 1);
-  assert.equal(onion.purchased, true, "doubling chili doesn't uncheck onions");
+  assert.equal(onion.purchased, true, "menu changes don't uncheck onions");
   const beans = findItem(list.id, "Kidney bean");
   assert.equal(beans.qty, 1);
-  assert.equal(beans.purchased, true, "doubling chili doesn't uncheck beans");
+  assert.equal(beans.purchased, true, "menu changes don't uncheck beans");
   assert.ok(findItem(list.id, "Spaghetti"));
   assert.ok(changes.added.some((i) => i.name === "Spaghetti"));
   assert.equal(S.isListOutdated(list.id), false);
@@ -285,8 +282,8 @@ test("acceptance: manual items, purchases and edits survive regeneration", () =>
 
 test("clearing completed items hides generated purchases so a regenerate doesn't re-add them", () => {
   fresh();
-  const r = recipe("Pasta", 4, [ing("1", "lb", "spaghetti"), ing("1", "jar", "marinara sauce")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
+  const r = recipe("Pasta", [ing("1", "lb", "spaghetti"), ing("1", "jar", "marinara sauce")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   const { list } = S.createListForPlan();
   const extra = S.quickAddItem(list.id, "milk");
   S.togglePurchased(findItem(list.id, "Spaghetti").id);
@@ -301,7 +298,7 @@ test("clearing completed items hides generated purchases so a regenerate doesn't
 
 test("changing an item's category can be remembered in the ingredient catalog", () => {
   fresh();
-  const r = recipe("Snack", 2, [ing("1", "bag", "pretzels")]);
+  const r = recipe("Snack", [ing("1", "bag", "pretzels")]);
   S.addMeal({ day: MON, meal: "lunch", recipeId: r.id });
   const { list } = S.createListForPlan();
   const it = findItem(list.id, "Pretzel");
@@ -315,8 +312,8 @@ test("changing an item's category can be remembered in the ingredient catalog", 
 // ---------- Pantry ----------
 test("pantry: flag mode marks items you have; legacy subtract mode becomes flag", () => {
   fresh();
-  const r = recipe("Bake", 4, [ing("3", "cup", "flour"), ing("2", "tbsp", "olive oil"), ing("1", "tsp", "salt")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
+  const r = recipe("Bake", [ing("3", "cup", "flour"), ing("2", "tbsp", "olive oil"), ing("1", "tsp", "salt")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   S.quickAddPantry("salt");
   S.quickAddPantry("1 cup flour");
   S.quickAddPantry("Extra virgin olive oil");
@@ -341,8 +338,8 @@ test("ingredient catalog: aliases resolve, duplicates are rejected, learn from r
   fresh();
   const g = S.createIngredient({ name: "Scallions", aliases: "green onions, spring onions", category: "produce" });
   assert.throws(() => S.createIngredient({ name: "green onion" }), /already in your catalog/);
-  const r = recipe("Soup", 4, [ing("2", "", "spring onions"), ing("1", "", "scallion"), ing("2", "cup", "chicken broth")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
+  const r = recipe("Soup", [ing("2", "", "spring onions"), ing("1", "", "scallion"), ing("2", "cup", "chicken broth")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   const { list } = S.createListForPlan();
   const sc = findItem(list.id, "Scallions");
   assert.equal(sc.qty, 1);
@@ -360,8 +357,8 @@ test("starter recipes parse cleanly and produce a sensible combined list", () =>
   added.forEach((r) => r.ingredients.forEach((g) => assert.ok(g.name && !/^\d/.test(g.name), r.name + ": " + g.name)));
   const tacos = added.find((r) => r.name === "Beef Tacos");
   const bolo = added.find((r) => r.name === "Spaghetti Bolognese");
-  S.addMeal({ day: MON, meal: "dinner", recipeId: tacos.id, servings: 4 });
-  S.addMeal({ day: WED, meal: "dinner", recipeId: bolo.id, servings: 6 });
+  S.addMeal({ day: MON, meal: "dinner", recipeId: tacos.id });
+  S.addMeal({ day: WED, meal: "dinner", recipeId: bolo.id });
   const { list } = S.createListForPlan();
   const beef = findItem(list.id, "Ground beef");
   assert.equal(beef.qty, 1); assert.equal(beef.unit, "");
@@ -373,11 +370,11 @@ test("starter recipes parse cleanly and produce a sensible combined list", () =>
 // ---------- Backup & restore ----------
 test("acceptance: backup slice round-trips with integrity verification and keeps sibling apps", async () => {
   fresh();
-  const r = recipe("Chili", 4, [ing("1", "lb", "ground beef")], { imageId: "img1" });
+  const r = recipe("Chili", [ing("1", "lb", "ground beef")], { imageId: "img1" });
   S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   const { list } = S.createListForPlan();
   S.togglePurchased(S.listItems(list.id)[0].id);
-  S.updateSettings({ measurement: "metric" });
+  S.updateSettings({ groupBy: "none" });
   const images = { img1: "data:image/jpeg;base64,/9j/4AAQSkZJRg==" };
 
   const slice = await Y.createSlice(S.getDb(), { theme: "twilight", images, revision: 7, device: "Test" });
@@ -390,7 +387,7 @@ test("acceptance: backup slice round-trips with integrity verification and keeps
   assert.equal(restored.db.recipes[0].imageId, "img1");
   assert.equal(restored.images.img1, images.img1);
   assert.equal(restored.db.items[0].purchased, true);
-  assert.equal(restored.db.settings.measurement, "metric");
+  assert.equal(restored.db.settings.groupBy, "none");
   assert.deepEqual(restored.meta.counts, { recipes: 1, archived: 0, menus: 1, meals: 1, lists: 1, items: 1, ingredients: 0, pantry: 0, occasional: 0, photos: 1 });
   assert.deepEqual(JSON.parse(JSON.stringify(restored.db)), JSON.parse(JSON.stringify(S.getDb())));
 
@@ -409,7 +406,7 @@ test("acceptance: backup slice round-trips with integrity verification and keeps
 
 test("encrypted cloud save merges, verifies, and only the right phrase decrypts", async () => {
   fresh();
-  recipe("Chili", 4, [ing("1", "lb", "ground beef")]);
+  recipe("Chili", [ing("1", "lb", "ground beef")]);
   const kv = new Map();
   const fakeFetch = async (url, init) => {
     const key = url.split("/sync/")[1].split("?")[0];
@@ -446,7 +443,7 @@ test("encrypted cloud save merges, verifies, and only the right phrase decrypts"
 
 test("normalizeDb repairs dangling references from damaged data", () => {
   const db = M.normalizeDb({
-    recipes: [{ id: "r1", name: "A", servings: 2 }],
+    recipes: [{ id: "r1", name: "A" }],
     meals: [{ id: "m1", day: MON, meal: "dinner", recipeId: "gone" }, { id: "m2", day: MON, meal: "lunch", recipeId: "r1" }],
     lists: [{ id: "l1", menuId: "nope" }], items: [{ id: "i1", listId: "l1", name: "x" }, { id: "i2", listId: "zzz", name: "y" }],
     menus: [{ id: "a", weekStart: "2026-11-02" }, { id: "b", weekStart: "2026-11-02" }],
@@ -460,8 +457,8 @@ test("normalizeDb repairs dangling references from damaged data", () => {
 // ---------- Regressions from review ----------
 test("catalog edits don't duplicate or uncheck items already on a list", () => {
   fresh();
-  const r = recipe("Soup", 4, [ing("2", "", "shallots"), ing("1", "cup", "flour"), ing("1", "cup", "milk")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
+  const r = recipe("Soup", [ing("2", "", "shallots"), ing("1", "cup", "flour"), ing("1", "cup", "milk")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   const { list } = S.createListForPlan();
   S.togglePurchased(findItem(list.id, "Shallot").id);
   S.togglePurchased(findItem(list.id, "Flour").id);
@@ -480,8 +477,8 @@ test("catalog edits don't duplicate or uncheck items already on a list", () => {
 
 test("lists generated with computed quantities migrate to one line per ingredient without losing checks", () => {
   fresh();
-  const r = recipe("Sauce", 1, [ing("3", "can", "san marzano tomatoes"), ing("2", "clove", "garlic"), ing("1", "tbsp", "garlic"), ing("1", "lb", "pasta")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id, servings: 4 });
+  const r = recipe("Sauce", [ing("3", "can", "san marzano tomatoes"), ing("2", "clove", "garlic"), ing("1", "tbsp", "garlic"), ing("1", "lb", "pasta")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
   const { list } = S.createListForPlan();
   const db = S.getDb();
   const legacy = (name, key, qty, unit, extra) => M.normalizeItem(Object.assign({ listId: list.id, key, name, norm: Un.normalizeName(name), qty, unit, genQty: qty, genUnit: unit, category: "pantry" }, extra || {}));
@@ -515,17 +512,17 @@ test("renaming the reusable plan retains meals and the shopping link", () => {
 
 test("both Saturdays contribute to the shopping list and verified backups", async () => {
   fresh();
-  const r = recipe("Pasta", 2, [ing("1", "lb", "pasta")]);
-  S.addMeal({ day: "saturday", meal: "dinner", recipeId: r.id, servings: 2 });
+  const r = recipe("Pasta", [ing("1", "lb", "pasta")]);
+  S.addMeal({ day: "saturday", meal: "dinner", recipeId: r.id });
   const { list } = S.createListForPlan();
   const pasta = findItem(list.id, "Pasta");
   S.togglePurchased(pasta.id);
-  S.addMeal({ day: "following-saturday", meal: "dinner", recipeId: r.id, servings: 4 });
+  S.addMeal({ day: "following-saturday", meal: "dinner", recipeId: r.id });
   assert.equal(P.planStats(S.getDb()).filled, 2);
   assert.equal(S.isListOutdated(list.id), false, "nothing new to buy");
   S.applyRegenerate(list.id);
   assert.equal(findItem(list.id, "Pasta").qty, 1);
-  assert.equal(findItem(list.id, "Pasta").purchased, true, "more servings never uncheck a purchase");
+  assert.equal(findItem(list.id, "Pasta").purchased, true, "another meal using it never unchecks a purchase");
   assert.deepEqual(findItem(list.id, "Pasta").sources.map((s) => s.day), ["saturday", "following-saturday"]);
   const restored = await Y.readBackup(await Y.createSlice(S.getDb()));
   assert.equal(restored.integrity, "verified");
@@ -563,11 +560,11 @@ test("dated meal inputs are rejected rather than silently creating new weeks", (
 test("schema v1 migration preserves dated meals, recipes, lists and purchase checks", async () => {
   const legacy = {
     schemaVersion: 1, settings: { weekStartsOn: 1 }, ingredients: [], pantry: [],
-    recipes: [{ id: "recipe1", name: "Pasta", servings: 2 }],
+    recipes: [{ id: "recipe1", name: "Pasta" }],
     menus: [{ id: "menu1", weekStart: "2026-11-02" }, { id: "menu2", weekStart: "2026-11-09" }],
     meals: [
-      { id: "meal1", date: "2026-11-07", meal: "dinner", recipeId: "recipe1", servings: 2 },
-      { id: "meal2", date: "2026-11-14", meal: "dinner", recipeId: "recipe1", servings: 4 },
+      { id: "meal1", date: "2026-11-07", meal: "dinner", recipeId: "recipe1" },
+      { id: "meal2", date: "2026-11-14", meal: "dinner", recipeId: "recipe1" },
       { id: "meal3", date: "2026-11-08", meal: "lunch", title: "Leftovers" },
     ],
     lists: [{ id: "list1", menuId: "menu1" }, { id: "list2", menuId: "menu2" }],
@@ -614,7 +611,7 @@ test("arrange moves items within their visible section", () => {
 
 test("replaceDb is all-or-nothing when storage is full", () => {
   const st = fresh();
-  recipe("Keep me", 2, []);
+  recipe("Keep me", []);
   st.setItem = () => { throw new Error("quota"); };
   assert.throws(() => S.replaceDb(M.emptyDb()), S.ValidationError);
   assert.equal(S.getDb().recipes.length, 1);

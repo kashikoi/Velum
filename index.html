@@ -6,13 +6,13 @@
   <title>Velum</title>
   <meta name="description" content="A local-first meal planner: a recipe library, a reusable eight-day Saturday-through-Saturday menu and a shopping list that builds itself." />
   <meta name="theme-color" content="#163e7a" />
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=2026.11.14.1" />
-  <link rel="apple-touch-icon" href="icon.svg?v=2026.11.14.1" />
-  <link rel="manifest" href="manifest.webmanifest?v=2026.11.14.1" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=2026.11.14.2" />
+  <link rel="apple-touch-icon" href="icon.svg?v=2026.11.14.2" />
+  <link rel="manifest" href="manifest.webmanifest?v=2026.11.14.2" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=2026.11.14.1" />
+  <link rel="stylesheet" href="styles.css?v=2026.11.14.2" />
   <script>
     if (/iPhone|iPod|Android.*Mobile|Windows Phone/i.test(navigator.userAgent)) {
       document.documentElement.classList.add("phone-checklist");
@@ -502,7 +502,7 @@
             </div>
           </div>
         </div>
-        <div class="form__row form__row--4">
+        <div class="form__row form__row--3">
           <label class="field">
             <span class="field__label">Prep (min)</span>
             <input class="field__input" id="rPrep" type="number" min="0" step="1" inputmode="numeric" />
@@ -514,10 +514,6 @@
           <label class="field">
             <span class="field__label">Total <em>(auto)</em></span>
             <input class="field__input" id="rTotal" type="number" min="0" step="1" inputmode="numeric" />
-          </label>
-          <label class="field">
-            <span class="field__label">Serves</span>
-            <input class="field__input" id="rServings" type="number" min="0.25" step="any" inputmode="decimal" required />
           </label>
         </div>
         <div class="form__row form__row--3">
@@ -628,15 +624,6 @@
           <span class="field__label">Note</span>
           <input class="field__input" id="mTitle" maxlength="160" />
         </label>
-        <div class="field" id="mServingsWrap">
-          <span class="field__label">Servings for this meal</span>
-          <div class="stepper">
-            <button type="button" class="stepper__btn" data-step="-1" aria-label="Fewer servings">&minus;</button>
-            <input class="stepper__input" id="mServings" type="number" min="0.25" step="any" inputmode="decimal" aria-label="Servings" />
-            <button type="button" class="stepper__btn" data-step="1" aria-label="More servings">+</button>
-          </div>
-          <span class="field__hint" id="mServingsHint"></span>
-        </div>
         <label class="field">
           <span class="field__label">Note for this meal <em>(optional)</em></span>
           <input class="field__input" id="mNote" maxlength="500" placeholder="e.g. Double the salsa" />
@@ -806,20 +793,6 @@
           <div class="form__row">
             <p class="field__hint">One reusable eight-day plan: Saturday through Saturday. No calendar dates; your meals stay until you change them.</p>
           </div>
-          <div class="form__row form__row--3">
-            <label class="field">
-              <span class="field__label">Breakfast serves</span>
-              <input class="field__input" id="sServB" type="number" min="1" max="50" step="1" />
-            </label>
-            <label class="field">
-              <span class="field__label">Lunch serves</span>
-              <input class="field__input" id="sServL" type="number" min="1" max="50" step="1" />
-            </label>
-            <label class="field">
-              <span class="field__label">Dinner serves</span>
-              <input class="field__input" id="sServD" type="number" min="1" max="50" step="1" />
-            </label>
-          </div>
         </form>
         <div class="settings-divider"></div>
         <form class="settings-group form--flush" id="shoppingForm" autocomplete="off">
@@ -922,7 +895,7 @@
       </div>
       <div class="about-content">
         <p class="about-content__name">Velum</p>
-        <p class="about-content__version" id="aboutVersion">Version 2026.11.14.1</p>
+        <p class="about-content__version" id="aboutVersion">Version 2026.11.14.2</p>
         <p class="about-content__description">Your personal kitchen companion: keep a recipe library, plan breakfast, lunch and dinner from Saturday through Saturday without calendar dates, and let Velum do the tedious part &mdash; adding up exactly what to buy. Named after velum, the smooth veil of cloud that drapes over a rising one, like the stacked lenticular saucers that park over the Flatirons on a windy winter day.</p>
         <dl class="about-build" id="aboutBuild"></dl>
       </div>
@@ -932,18 +905,18 @@
   <!-- Toast -->
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" class="toast__action" id="toastAction" hidden></button></div>
 
-  <script src="js/util.js?v=2026.11.14.1"></script>
-  <script src="js/units.js?v=2026.11.14.1"></script>
-  <script src="js/model.js?v=2026.11.14.1"></script>
-  <script src="js/planner.js?v=2026.11.14.1"></script>
-  <script src="js/store.js?v=2026.11.14.1"></script>
-  <script src="js/sync.js?v=2026.11.14.1"></script>
-  <script src="js/images.js?v=2026.11.14.1"></script>
-  <script src="js/demo.js?v=2026.11.14.1"></script>
-  <script src="js/views.js?v=2026.11.14.1"></script>
-  <script src="js/shell.js?v=2026.11.14.1"></script>
-  <script src="js/editors.js?v=2026.11.14.1"></script>
-  <script src="js/backup.js?v=2026.11.14.1"></script>
-  <script src="js/app.js?v=2026.11.14.1"></script>
+  <script src="js/util.js?v=2026.11.14.2"></script>
+  <script src="js/units.js?v=2026.11.14.2"></script>
+  <script src="js/model.js?v=2026.11.14.2"></script>
+  <script src="js/planner.js?v=2026.11.14.2"></script>
+  <script src="js/store.js?v=2026.11.14.2"></script>
+  <script src="js/sync.js?v=2026.11.14.2"></script>
+  <script src="js/images.js?v=2026.11.14.2"></script>
+  <script src="js/demo.js?v=2026.11.14.2"></script>
+  <script src="js/views.js?v=2026.11.14.2"></script>
+  <script src="js/shell.js?v=2026.11.14.2"></script>
+  <script src="js/editors.js?v=2026.11.14.2"></script>
+  <script src="js/backup.js?v=2026.11.14.2"></script>
+  <script src="js/app.js?v=2026.11.14.2"></script>
 </body>
 </html>

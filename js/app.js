@@ -66,14 +66,13 @@
     const day = nextOpenDay(meal);
     H.openDialog({
       title: "Add “" + r.name + "” to the menu",
-      body: `<div class="form__row form__row--3">
+      body: `<div class="form__row">
           <label class="field"><span class="field__label">Day</span><select class="field__input" name="day" required>${W.dayOptions(day)}</select></label>
           <label class="field"><span class="field__label">Meal</span><select class="field__input" name="meal">${M.MEAL_TYPES.map((t) => `<option value="${t}"${t === meal ? " selected" : ""}>${M.MEAL_LABEL[t]}</option>`).join("")}</select></label>
-          <label class="field"><span class="field__label">Servings</span><input class="field__input" type="number" min="0.25" step="any" name="servings" value="${ui.recipeServings.get(r.id) || db.settings.servings[meal]}" required /></label>
-        </div><p class="field__hint" style="margin-top:8px">The recipe makes ${esc(Un.formatQty(r.servings, ""))}; ingredients scale for this meal only.</p>`,
+        </div>`,
       submit: "Add to menu",
       onSubmit: (f) => {
-        const m = S.addMeal({ recipeId: r.id, day: f.elements.day.value, meal: f.elements.meal.value, servings: f.elements.servings.value });
+        const m = S.addMeal({ recipeId: r.id, day: f.elements.day.value, meal: f.elements.meal.value });
         H.toast(`Added to ${M.DAY_LABEL[m.day]} ${M.MEAL_LABEL[m.meal].toLowerCase()}.`, { label: "View plan", run: () => H.navigate("#/menu") });
       },
     });
@@ -192,15 +191,6 @@
       case "delete-recipe": return deleteRecipe(d.id);
       case "restore-recipe": { H.attempt(() => S.restoreRecipe(d.id)); return H.toast("Back in your library."); }
       case "cook-mode": H.setCooking(!ui.cooking); return H.render();
-      case "scale": {
-        const r = db.recipes.find((x) => x.id === ui.route.arg);
-        if (!r) return;
-        const meal = ui.route.query.meal && db.meals.find((m) => m.id === ui.route.query.meal);
-        const cur = ui.recipeServings.get(r.id) || (meal ? meal.servings : r.servings);
-        ui.recipeServings.set(r.id, Math.max(1, Math.round(cur) + +d.delta));
-        return H.render();
-      }
-      case "scale-reset": ui.recipeServings.delete(ui.route.arg); return H.render();
       case "step-toggle": toggleCheck(d.key); return H.render();
       // Shopping
       case "buy": H.attempt(() => S.togglePurchased(d.id)); return;
@@ -273,7 +263,6 @@
       case "lib-sort": ui.lib.sort = t.value; return H.render();
       case "lib-cuisine": ui.lib.cuisine = t.value; return H.render();
       case "lib-tag": ui.lib.tag = t.value; return H.render();
-      case "scale-input": { const n = U.numOrNull(t.value); if (n && n > 0) ui.recipeServings.set(ui.route.arg, Math.min(500, n)); return H.render(); }
       case "ing-check": toggleCheck(d.key); t.closest(".ing-line").classList.toggle("is-checked", t.checked); return;
       case "pick-list": ui.listId = t.value; return H.navigate("#/shopping/" + t.value);
       case "pantry-avail": H.attempt(() => S.updatePantry(d.id, { available: t.checked })); return;

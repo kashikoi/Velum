@@ -37,7 +37,6 @@
   }
   function bar(pct) { return `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct * 100)}"><div class="bar__fill" style="width:${(pct * 100).toFixed(1)}%"></div></div>`; }
   function timeText(r) { const t = M.totalTime(r); return t ? "⏱ " + U.fmtMinutes(t) : ""; }
-  function fmtServ(n) { return Un.formatQty(n, ""); }
   function recipeMap(db) { return new Map(db.recipes.map((r) => [r.id, r])); }
   function mealName(m, recipes) {
     const r = m.recipeId && recipes.get(m.recipeId);
@@ -48,7 +47,6 @@
     const r = m.recipeId && recipes.get(m.recipeId);
     const o = opts || {};
     const meta = [];
-    if (r) meta.push("Serves " + fmtServ(m.servings));
     if (r && r.archived) meta.push("archived");
     if (m.note) meta.push(esc(m.note));
     const cls = ["meal-chip", m.done ? "is-done" : "", r ? "" : "is-note", r && r.archived ? "is-archived" : ""].filter(Boolean).join(" ");
@@ -147,7 +145,7 @@
       </div>
       <div class="welcome-steps">
         <div class="insight"><span class="insight__body"><strong>1 · Recipes</strong><br />Type or paste ingredients; Velum understands &ldquo;1 ½ cups flour, sifted&rdquo;.</span></div>
-        <div class="insight"><span class="insight__body"><strong>2 · Menu plan</strong><br />Eight days, no calendar dates. Tap a slot to add a recipe, set servings, drag to rearrange.</span></div>
+        <div class="insight"><span class="insight__body"><strong>2 · Menu plan</strong><br />Eight days, no calendar dates. Tap a slot to add a recipe, drag to rearrange.</span></div>
         <div class="insight"><span class="insight__body"><strong>3 · Shopping</strong><br />One tap builds a consolidated list. Re-sync anytime without losing your checks.</span></div>
       </div>
     </div>`;
@@ -230,7 +228,7 @@
       const rows = meals.map((m) => {
         const r = m.recipeId && recipes.get(m.recipeId);
         const meta = [];
-        if (r) { meta.push("Serves " + fmtServ(m.servings)); const tt = timeText(r); if (tt) meta.push(tt); }
+        if (r) { const tt = timeText(r); if (tt) meta.push(tt); }
         if (m.note) meta.push(esc(m.note));
         return `<div class="day-meal">
           <span class="day-meal__img">${r ? imgTag(r, "") || placeholder(r) : "📝"}</span>
@@ -273,7 +271,7 @@
     return list.slice().sort(by);
   }
   function recipeCard(r) {
-    const meta = [timeText(r), r.servings ? "Serves " + fmtServ(r.servings) : "", r.difficulty ? M.DIFFICULTY_LABEL[r.difficulty] : ""].filter(Boolean);
+    const meta = [timeText(r), r.difficulty ? M.DIFFICULTY_LABEL[r.difficulty] : ""].filter(Boolean);
     return `<article class="recipe-card">
       <a class="recipe-card__link" href="#/recipe/${esc(r.id)}">
         <span class="recipe-card__img">${imgTag(r, "") || placeholder(r)}</span>
@@ -321,13 +319,10 @@
 
   // ---------- Recipe detail ----------
   function recipeDetail(db, ui, r, ctx) {
-    const servings = ctx.servings;
-    const scaled = P.scaledIngredients(r, servings);
-    const factor = P.scaleFactor(r, servings);
     const usage = S.recipeUsage(r.id);
     const meal = ctx.mealId ? db.meals.find((m) => m.id === ctx.mealId) : null;
     const groups = [];
-    scaled.forEach((g) => {
+    r.ingredients.forEach((g) => {
       let grp = groups.find((x) => x.name === g.group);
       if (!grp) { grp = { name: g.group, items: [] }; groups.push(grp); }
       grp.items.push(g);
@@ -350,12 +345,11 @@
       r.prepMin ? stat("Prep", U.fmtMinutes(r.prepMin)) : "",
       r.cookMin ? stat("Cook", U.fmtMinutes(r.cookMin)) : "",
       t ? stat("Total", U.fmtMinutes(t)) : "",
-      stat("Serves", fmtServ(r.servings)),
       r.difficulty ? stat("Difficulty", M.DIFFICULTY_LABEL[r.difficulty]) : "",
     ].join("");
     return `
       ${r.archived ? `<div class="insight insight--warn archived-banner"><span class="insight__body"><strong>Archived.</strong> It's hidden from the library but kept so your plan still shows it.</span><button type="button" class="btn btn--tiny" data-act="restore-recipe" data-id="${esc(r.id)}">Restore to library</button></div>` : ""}
-      ${meal ? `<div class="insight insight--good"><span class="insight__body">Planned for <strong>${M.DAY_LABEL[meal.day]} · ${M.MEAL_LABEL[meal.meal]}</strong> — showing amounts for ${fmtServ(meal.servings)} servings.</span><a class="btn btn--tiny" href="#/menu">Back to menu</a></div>` : ""}
+      ${meal ? `<div class="insight insight--good"><span class="insight__body">Planned for <strong>${M.DAY_LABEL[meal.day]} · ${M.MEAL_LABEL[meal.meal]}</strong>.</span><a class="btn btn--tiny" href="#/menu">Back to menu</a></div>` : ""}
       <section class="recipe-hero">
         <div class="recipe-hero__img">${imgTag(r) || placeholder(r)}</div>
         <div class="recipe-hero__body">
@@ -377,16 +371,7 @@
       <div class="recipe-body">
         <section class="panel">
           <h3 class="section-title">Ingredients</h3>
-          <div class="scaler">
-            <div class="stepper">
-              <button type="button" class="stepper__btn" data-act="scale" data-delta="-1" aria-label="Fewer servings">&minus;</button>
-              <input class="stepper__input" type="number" min="0.25" step="any" value="${+(+servings).toFixed(2)}" data-change="scale-input" aria-label="Servings" />
-              <button type="button" class="stepper__btn" data-act="scale" data-delta="1" aria-label="More servings">+</button>
-            </div>
-            <span class="scaler__note">servings${Math.abs(factor - 1) > 1e-9 ? ` · scaled ×${U.round(factor, 2)} from ${fmtServ(r.servings)} <button type="button" class="link-btn" data-act="scale-reset">reset</button>` : ""}</span>
-          </div>
-          ${scaled.length ? `<ul class="ing-list">${ingHtml}</ul>` : `<p class="empty-note">No ingredients yet.</p>`}
-          ${Math.abs(factor - 1) > 1e-9 ? `<p class="field__hint">Scaling here never changes the saved recipe.</p>` : ""}
+          ${r.ingredients.length ? `<ul class="ing-list">${ingHtml}</ul>` : `<p class="empty-note">No ingredients yet.</p>`}
         </section>
         <section class="panel">
           <h3 class="section-title">Instructions ${r.steps.length ? `<span class="muted">tap a step to mark it done</span>` : ""}</h3>
