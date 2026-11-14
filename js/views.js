@@ -14,7 +14,8 @@
   function initials(name) {
     return String(name || "").split(/\s+/).filter((w) => /^[A-Za-z0-9]/.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   }
-  function recipeIcon(r) { return r ? M.CATEGORY_ICON[r.categories[0]] || "🍴" : "📝"; }
+  const NOTE_ICON = "🍽️";
+  function recipeIcon(r) { return r ? M.CATEGORY_ICON[r.categories[0]] || "🍴" : NOTE_ICON; }
   function imgTag(r, alt) {
     const src = r && I.get(r.imageId);
     return src ? `<img src="${esc(src)}" alt="${esc(alt === undefined ? r.name : alt)}" loading="lazy" decoding="async" />` : "";
@@ -25,6 +26,9 @@
   }
   function placeholder(r) {
     return `<span class="ph"><span>${recipeIcon(r)}</span><span class="recipe-card__initials">${esc(initials(r.name))}</span></span>`;
+  }
+  function notePlaceholder(title) {
+    return `<span class="ph"><span>${NOTE_ICON}</span><span class="recipe-card__initials">${esc(initials(title || "Meal"))}</span></span>`;
   }
   function pill(text, tone) { return `<span class="pill${tone ? " pill--" + tone : ""}">${text}</span>`; }
   function pageHead(title, sub, actions) {
@@ -52,7 +56,7 @@
     const cls = ["meal-chip", m.done ? "is-done" : "", r ? "" : "is-note", r && r.archived ? "is-archived" : ""].filter(Boolean).join(" ");
     return `<div class="${cls}"${o.draggable ? ` draggable="true"` : ""} data-meal-id="${esc(m.id)}">
       <button type="button" class="done-toggle${m.done ? " is-on" : ""}" data-act="toggle-done" data-id="${esc(m.id)}" aria-pressed="${m.done}" title="${m.done ? "Made it ✓" : "Mark as made"}" aria-label="${m.done ? "Mark not made" : "Mark as made"}: ${esc(mealName(m, recipes))}">✓</button>
-      ${r ? thumb(r, "sm") : ""}
+      ${thumb(r || null, "sm")}
       <button type="button" class="meal-chip__text" data-act="open-meal" data-id="${esc(m.id)}">
         <span class="meal-chip__name">${esc(mealName(m, recipes))}</span>
         ${meta.length ? `<span class="meal-chip__meta">${meta.join(" · ")}</span>` : ""}
@@ -231,7 +235,7 @@
         if (r) { const tt = timeText(r); if (tt) meta.push(tt); }
         if (m.note) meta.push(esc(m.note));
         return `<div class="day-meal">
-          <span class="day-meal__img">${r ? imgTag(r, "") || placeholder(r) : "📝"}</span>
+          <span class="day-meal__img">${r ? imgTag(r, "") || placeholder(r) : notePlaceholder(m.title)}</span>
           <div><${r ? `a href="#/recipe/${esc(r.id)}?meal=${esc(m.id)}"` : "span"} class="day-meal__name">${esc(mealName(m, recipes))}</${r ? "a" : "span"}>${m.done ? " " + pill("✓ Made", "good") : ""}
             <div class="day-meal__meta">${meta.join(" · ")}</div></div>
           <div class="day-meal__actions">

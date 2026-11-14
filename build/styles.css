@@ -1269,7 +1269,6 @@ html.day .meal-chip { background: var(--glass-hi); border-color: var(--glass-bor
 }
 .meal-chip.is-done { opacity: 0.7; }
 .meal-chip.is-done .meal-chip__name { text-decoration: line-through; text-decoration-color: var(--good); }
-.meal-chip.is-note .meal-chip__name { font-style: italic; font-weight: 600; }
 .meal-chip.is-archived .meal-chip__meta { color: var(--warn); }
 .done-toggle {
   width: 22px; height: 22px; flex: none;

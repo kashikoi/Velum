@@ -288,7 +288,7 @@
     el.mealTitle.textContent = M.DAY_LABEL[m.day] + " · " + M.MEAL_LABEL[m.meal];
     el.mHead.innerHTML = r
       ? `${W.thumb(r, "lg")}<div><div class="meal-head__name">${esc(r.name)}</div><div class="meal-head__meta">${[M.totalTime(r) ? U.fmtMinutes(M.totalTime(r)) : "", r.archived ? "archived" : ""].filter(Boolean).join(" · ")}</div></div>`
-      : `<span class="thumb thumb--lg">📝</span><div><div class="meal-head__name">${esc(m.title)}</div><div class="meal-head__meta">A note, not a recipe — nothing is added to the shopping list.</div></div>`;
+      : `<span class="thumb thumb--lg">🍽️</span><div><div class="meal-head__name">${esc(m.title)}</div><div class="meal-head__meta">A note, not a recipe — nothing is added to the shopping list.</div></div>`;
     el.mTitleWrap.hidden = !!r;
     el.mTitle.value = r ? "" : m.title;
     el.mNote.value = m.note;
