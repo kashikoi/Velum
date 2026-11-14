@@ -198,6 +198,7 @@
       case "regen": return regenDialog(d.id);
       case "new-list": return listNameDialog(null);
       case "rename-list": return listNameDialog(d.id);
+      case "copy-list": return copyListItems(d.id);
       case "delete-list": return deleteList(d.id);
       case "clear-done": { const r = H.attempt(() => S.clearCompleted(d.id)); if (r.ok) H.toast("Cleared " + U.plural(r.value, "checked item") + "."); return; }
       case "arrange": ui.arrange = !ui.arrange; return H.render();
@@ -237,6 +238,26 @@
     }
   }
   function toggleCheck(key) { if (ui.cookChecks.has(key)) ui.cookChecks.delete(key); else ui.cookChecks.add(key); }
+  async function copyListItems(listId) {
+    const text = S.listCopyText(listId);
+    if (!text) return H.toast("Nothing to copy.");
+    const n = text.split("\n").length;
+    let ok = false;
+    try {
+      if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); ok = true; }
+    } catch (e) { ok = false; }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      ta.remove();
+    }
+    H.toast(ok ? "Copied " + U.plural(n, "item") + " — paste anywhere." : "Couldn't copy — your browser blocked clipboard access.");
+  }
   async function deleteRecipe(id) {
     const r = S.getDb().recipes.find((x) => x.id === id);
     if (!r) return;

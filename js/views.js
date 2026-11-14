@@ -476,6 +476,7 @@
         <div class="row-actions">
           ${newPlanBtn ? newPlanBtn.replace("btn--beacon", "btn--ghost btn--tiny") : ""}
           <button type="button" class="btn btn--ghost btn--tiny" data-act="new-list">+ New list</button>
+          <button type="button" class="btn btn--ghost btn--tiny" data-act="copy-list" data-id="${esc(list.id)}"${items.length ? "" : " disabled"}>📋 Copy items</button>
           <button type="button" class="btn btn--ghost btn--tiny" data-act="rename-list" data-id="${esc(list.id)}">Rename</button>
           <button type="button" class="btn btn--danger btn--tiny" data-act="delete-list" data-id="${esc(list.id)}">Delete</button>
         </div>

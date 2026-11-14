@@ -616,3 +616,22 @@ test("replaceDb is all-or-nothing when storage is full", () => {
   assert.throws(() => S.replaceDb(M.emptyDb()), S.ValidationError);
   assert.equal(S.getDb().recipes.length, 1);
 });
+
+test("copy text lists item names only, one per line, in aisle order without pantry or cleared items", () => {
+  fresh();
+  const r = recipe("Sauce", [ing("3", "can", "san marzano tomatoes"), ing("1", "lb", "ground beef"), ing("2", "clove", "garlic"), ing("1", "tsp", "salt")]);
+  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
+  S.quickAddPantry("salt");
+  const { list } = S.createListForPlan();
+  S.quickAddItem(list.id, "paper towels");
+  const milk = S.quickAddItem(list.id, "milk");
+  S.togglePurchased(milk.id);
+  S.clearCompleted(list.id);
+  const text = S.listCopyText(list.id);
+  const lines = text.split("\n");
+  assert.deepEqual(lines.slice().sort(), ["Garlic", "Ground beef", "paper towels", "San marzano tomato"].sort());
+  assert.ok(!/\d/.test(text), "no quantities");
+  const order = S.getDb().settings.categoryOrder;
+  const cats = lines.map((n) => order.indexOf(findItem(list.id, n).category));
+  assert.deepEqual(cats, cats.slice().sort((a, b) => a - b), "aisle order");
+});

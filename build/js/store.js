@@ -262,6 +262,16 @@
 
   // ---------- Shopping lists ----------
   function listItems(listId) { return db.items.filter((i) => i.listId === listId).sort((a, b) => a.sortOrder - b.sortOrder); }
+  // Item names only, one per line, in the list's display order (aisle order when grouped). Skips cleared items
+  // and things set aside as already in the pantry.
+  function listCopyText(listId) {
+    const items = listItems(listId).filter((i) => !i.cleared && !(i.inPantry && !i.pantryOverride));
+    const order = db.settings.categoryOrder;
+    const ordered = db.settings.groupBy === "category"
+      ? [].concat.apply([], order.map((cat) => items.filter((i) => i.category === cat)))
+      : items;
+    return ordered.map((i) => String(i.name).replace(/\s+/g, " ").trim()).filter(Boolean).join("\n");
+  }
   function listForMenu(menuId) { return db.lists.find((l) => l.menuId === menuId) || null; }
   function createList(name) {
     const l = M.normalizeList({ name: U.str(name, 80) || "Shopping list", createdAt: now(), updatedAt: now() });
@@ -682,7 +692,7 @@
     updateSettings,
     createRecipe, updateRecipe, duplicateRecipe, toggleFavorite, deleteRecipe, restoreRecipe, recipeUsage, addRecipes,
     ensureMenu, renameMenu, addMeal, updateMeal, moveMeal, copyMeal, removeMeal, toggleMealDone, copyDay, clearDay, clearPlan,
-    listItems, listForMenu, createList, createListForPlan, menuForList, previewRegenerate, applyRegenerate, isListOutdated,
+    listItems, listCopyText, listForMenu, createList, createListForPlan, menuForList, previewRegenerate, applyRegenerate, isListOutdated,
     renameList, deleteList, setListStatus,
     addItem, quickAddItem, updateItem, resetItemToMenu, togglePurchased, setPantryOverride, deleteItem, restoreItem, clearCompleted, moveItem, dropItem,
     createIngredient, updateIngredient, deleteIngredient, learnFromRecipes,
