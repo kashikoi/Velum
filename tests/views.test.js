@@ -142,7 +142,7 @@ test("phone checks toggle strikethrough in place regardless of desktop purchase 
   }
 });
 
-test("checklist keeps pantry items separate and cleared items hidden", () => {
+test("checklist ignores legacy pantry flags and hides cleared items", () => {
   S.init();
   S.replaceDb(M.normalizeDb({
     lists: [{ id: "groceries", name: "Groceries" }],
@@ -153,9 +153,8 @@ test("checklist keeps pantry items separate and cleared items hidden", () => {
     ],
   }));
   const html = W.shopping(S.getDb(), { phoneChecklist: true }, S.getDb().lists[0]);
-  assert.match(html, /Already in your pantry/);
-  assert.ok(html.indexOf('class="shop-item__name">Apples') < html.indexOf('class="shop-item__name">Salt'));
-  assert.match(html, /data-act="pantry-override"/);
+  assert.doesNotMatch(html, /Already in your pantry|pantry-override/);
+  assert.match(html, /class="shop-item__name">Salt/);
   assert.doesNotMatch(html, /Removed item/);
 });
 
@@ -166,7 +165,7 @@ test("occasional items are saved, added to the current list without duplicates, 
   assert.equal(shampoo.name, "Shampoo");
   assert.equal(shampoo.qty, 2);
   assert.equal(shampoo.unit, "bottle");
-  assert.throws(() => S.addOccasional("shampoo"), /already on your occasional list/);
+  assert.throws(() => S.addOccasional("shampoo"), /already in your common items/);
   const towels = S.addOccasional("Paper towels");
   assert.equal(towels.category, "household");
   const foil = S.addOccasional("2 packs aluminum foil");
@@ -208,23 +207,26 @@ test("occasional items are saved, added to the current list without duplicates, 
   assert.equal(S.getDb().occasional.length, 0, "Clear all data includes occasional items");
 });
 
-test("occasional page shows list status and phone shopping hides the occasional link", () => {
+test("common items panel on the shopping list toggles items on and off and supports editing", () => {
   S.init();
   const list = S.createList("Costco run");
   const soap = S.addOccasional("Dish soap");
   S.addOccasional("<Batteries> & bulbs");
-  let html = W.occasional(S.getDb(), {}, list);
-  assert.match(html, /Costco run/);
+  let html = W.shopping(S.getDb(), {}, list);
+  assert.match(html, /Common items/);
   assert.match(html, /&lt;Batteries&gt; &amp; bulbs/);
   assert.equal((html.match(/data-act="occ-need"/g) || []).length, 2);
   S.needOccasional(soap.id, list.id);
-  html = W.occasional(S.getDb(), {}, list);
+  html = W.shopping(S.getDb(), {}, list);
   assert.equal((html.match(/data-act="occ-need"/g) || []).length, 1);
-  assert.match(html, /data-act="occ-unneed"[^>]*>✓ On list/);
-  assert.match(html, /1 item already on it/);
-  assert.match(W.occasional(S.getDb(), {}, null), /start a shopping list for you/);
-  assert.match(W.shopping(S.getDb(), {}, list), /href="#\/occasional"/);
-  assert.doesNotMatch(W.shopping(S.getDb(), { phoneChecklist: true }, list), /occasional/i);
+  assert.match(html, /data-act="occ-unneed"[^>]*>✓ Dish soap/);
+  html = W.shopping(S.getDb(), { commonEdit: true }, list);
+  assert.equal((html.match(/data-act="occ-del"/g) || []).length, 2);
+  assert.equal((html.match(/data-act="occ-edit"/g) || []).length, 2);
+  assert.doesNotMatch(html, /data-act="occ-need"/);
+  assert.match(W.shopping(S.getDb(), { phoneChecklist: true }, list), /Common items/);
+  assert.match(W.shopping(S.getDb(), {}, null), /data-act="occ-need"/, "shown even before a list exists");
+  assert.doesNotMatch(html, /#\/occasional|#\/pantry/);
 });
 
 test("dragging shopping items keeps them where they are dropped, adopting the aisle in aisle order", () => {

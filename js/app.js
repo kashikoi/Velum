@@ -122,7 +122,7 @@
     if (!o) return;
     const cats = M.GROCERY_CATEGORIES.map((c) => `<option value="${c}"${c === o.category ? " selected" : ""}>${M.GROCERY_ICON[c]} ${esc(M.GROCERY_LABEL[c])}</option>`).join("");
     H.openDialog({
-      title: "Edit occasional item",
+      title: "Edit common item",
       body: `<label class="field"><span class="field__label">Name</span><input class="field__input" name="name" maxlength="160" value="${esc(o.name)}" required /></label>
         <div class="form__row"><label class="field"><span class="field__label">Amount <em>(optional)</em></span><input class="field__input" name="qty" value="${o.qty == null ? "" : esc(Un.formatQty(o.qty, o.unit))}" placeholder="e.g. 2" /></label>
         <label class="field"><span class="field__label">Unit <em>(optional)</em></span><input class="field__input" name="unit" list="unitList" value="${esc(o.unit ? Un.unitLabel(o.unit, o.qty) : "")}" placeholder="e.g. bottle" /></label></div>
@@ -162,8 +162,6 @@
 
   // ---------- Canvas actions ----------
   function onCanvasClick(e) {
-    const row = e.target.closest("[data-edit-ingredient]");
-    if (row && !e.target.closest("button, a, input")) return E.openIngredientModal(row.dataset.editIngredient);
     const t = e.target.closest("[data-act]");
     if (!t || t.disabled) return;
     const d = t.dataset;
@@ -204,16 +202,16 @@
       case "arrange": ui.arrange = !ui.arrange; return H.render();
       case "group-toggle": return H.attempt(() => S.updateSettings({ groupBy: db.settings.groupBy === "category" ? "none" : "category" }));
       case "list-status": { const l = db.lists.find((x) => x.id === d.id); if (l) { S.setListStatus(l.id, l.status === "done" ? "active" : "done"); H.toast(l.status === "done" ? "Nice shopping! List marked finished." : "List reopened."); } return; }
-      case "pantry-override": return H.attempt(() => S.setPantryOverride(d.id, true));
       case "item-move": return H.attempt(() => S.moveItem(d.id, +d.delta));
-      // Occasional items
+      // Common items
+      case "common-edit": ui.commonEdit = !ui.commonEdit; return H.render();
       case "occ-need": {
         const cur = H.currentList(db);
         const r = H.attempt(() => S.needOccasional(d.id, cur ? cur.id : null));
         if (!r.ok) return;
         ui.listId = r.value.list.id;
-        H.toast(r.value.added ? r.value.item.name + " added to " + r.value.list.name + "." : r.value.item.name + " is already on " + r.value.list.name + ".",
-          { label: "View list", run: () => H.navigate("#/shopping/" + r.value.list.id) });
+        if (!cur) H.navigate("#/shopping/" + r.value.list.id);
+        H.toast(r.value.added ? r.value.item.name + " added to " + r.value.list.name + "." : r.value.item.name + " is already on " + r.value.list.name + ".");
         return;
       }
       case "occ-unneed": {
@@ -225,15 +223,9 @@
       case "occ-move": return H.attempt(() => S.moveOccasional(d.id, +d.delta));
       case "occ-del": {
         const r = H.attempt(() => S.deleteOccasional(d.id));
-        if (r.ok) H.toast(r.value.name + " removed from occasional items.", { label: "Undo", run: () => S.restoreOccasional(r.value) });
+        if (r.ok) H.toast(r.value.name + " removed from common items.", { label: "Undo", run: () => S.restoreOccasional(r.value) });
         return;
       }
-      // Pantry & catalog
-      case "pantry-tab": ui.pantryTab = d.val; return H.render();
-      case "staple": { const r = H.attempt(() => S.quickAddPantry(d.val)); if (r.ok) H.toast(r.value.name + " added to your pantry."); return; }
-      case "pantry-del": { const p = db.pantry.find((x) => x.id === d.id); H.attempt(() => S.deletePantry(d.id)); if (p) H.toast(p.name + " removed.", { label: "Undo", run: () => { S.getDb().pantry.push(p); S.commit(); } }); return; }
-      case "new-ingredient": return E.openIngredientModal(null);
-      case "learn": { const r = H.attempt(() => S.learnFromRecipes()); if (r.ok) H.toast(r.value ? "Added " + U.plural(r.value, "ingredient") + " to your catalog." : "Every recipe ingredient is already in the catalog."); return; }
       case "open-settings": return B.openSettings();
     }
   }
@@ -286,9 +278,6 @@
       case "lib-tag": ui.lib.tag = t.value; return H.render();
       case "ing-check": toggleCheck(d.key); t.closest(".ing-line").classList.toggle("is-checked", t.checked); return;
       case "pick-list": ui.listId = t.value; return H.navigate("#/shopping/" + t.value);
-      case "pantry-avail": H.attempt(() => S.updatePantry(d.id, { available: t.checked })); return;
-      case "pantry-qty": H.attempt(() => S.updatePantry(d.id, { qtyText: t.value })); return;
-      case "pantry-unit": H.attempt(() => S.updatePantry(d.id, { unit: t.value })); return;
     }
   }
   function onCanvasInput(e) {
@@ -304,18 +293,12 @@
       if (!text) return input.focus();
       const r = H.attempt(() => S.quickAddItem(f.dataset.id, text));
       if (r.ok) { const again = $("quickAdd"); again.value = ""; again.focus(); H.toast("Added " + r.value.name + " to " + M.GROCERY_LABEL[r.value.category] + "."); }
-    } else if (f.dataset.form === "pantry-add") {
-      const input = $("pantryAdd");
-      const text = input.value.trim();
-      if (!text) return input.focus();
-      const r = H.attempt(() => S.quickAddPantry(text));
-      if (r.ok) { const again = $("pantryAdd"); again.value = ""; again.focus(); }
     } else if (f.dataset.form === "occ-add") {
       const input = $("occAdd");
       const text = input.value.trim();
       if (!text) return input.focus();
       const r = H.attempt(() => S.addOccasional(text));
-      if (r.ok) { const again = $("occAdd"); again.value = ""; again.focus(); H.toast(r.value.name + " saved to occasional items."); }
+      if (r.ok) { const again = $("occAdd"); again.value = ""; again.focus(); H.toast(r.value.name + " saved to your common items."); }
     }
   }
 
@@ -433,7 +416,7 @@
     }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
       const top = H.topModal();
-      const form = { recipeModal: el.recipeForm, mealModal: el.mealForm, itemModal: el.itemForm, ingredientModal: el.ingredientForm, dialogModal: el.dialogForm }[top];
+      const form = { recipeModal: el.recipeForm, mealModal: el.mealForm, itemModal: el.itemForm, dialogModal: el.dialogForm }[top];
       if (form) { e.preventDefault(); form.requestSubmit(); }
       return;
     }
@@ -472,10 +455,6 @@
     el.canvas.addEventListener("change", onCanvasChange);
     el.canvas.addEventListener("input", onCanvasInput);
     el.canvas.addEventListener("submit", onCanvasSubmit);
-    el.canvas.addEventListener("keydown", (e) => {
-      const row = e.target.closest && e.target.closest("[data-edit-ingredient]");
-      if (row && e.key === "Enter") E.openIngredientModal(row.dataset.editIngredient);
-    });
     if (ui.canDrag) bindDragDrop();
     bindShopDrag();
     el.topNewRecipeBtn.addEventListener("click", () => E.openRecipeEditor(null));

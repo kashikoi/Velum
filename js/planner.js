@@ -1,4 +1,4 @@
-/* Velum — planning engine: recipe scaling, ingredient aggregation, pantry matching and shopping-list
+/* Velum — planning engine: ingredient aggregation and shopping-list
    reconciliation. Pure functions (db in, data out); the store applies the results. */
 (function (V) {
   "use strict";
@@ -101,20 +101,9 @@
     return best;
   }
 
-  // ---------- Pantry ----------
-  // Items you already have are moved to an "Already in pantry" section of the list.
-  function applyPantry(entries, pantry, ingredients, mode) {
-    if (mode === "off" || !pantry.length) return entries;
-    const idx = catalogIndex(ingredients || []);
-    const have = new Set();
-    pantry.filter((p) => p.available).forEach((p) => have.add(nameKeyFor(idx, p.ingredientId, p.name, p.unit).key));
-    return entries.map((e) => (have.has(e.key.split("|")[0]) ? Object.assign({}, e, { inPantry: true }) : e));
-  }
-
   function generateForPlan(db, opts) {
     const lines = requirementsForPlan(db, opts);
-    const entries = aggregate(lines, db.ingredients);
-    return applyPantry(entries, db.pantry, db.ingredients, db.settings.pantryMode);
+    return aggregate(lines, db.ingredients);
   }
   // A cheap fingerprint of what the menu currently requires; used to tell when a list is out of date.
   function signature(entries) {
@@ -266,6 +255,6 @@
 
   V.planner = {
     menuForPlan, slotMeals, planStats,
-    catalogIndex, resolveIngredient, nameKeyFor, requirementsForPlan, aggregate, applyPantry, generateForPlan, signature, reconcile,
+    catalogIndex, resolveIngredient, nameKeyFor, requirementsForPlan, aggregate, generateForPlan, signature, reconcile,
   };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);

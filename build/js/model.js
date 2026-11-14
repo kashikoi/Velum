@@ -38,7 +38,6 @@
       categoryOrder: GROCERY_CATEGORIES.slice(),
       purchased: "bottom",
       includeOptional: true,
-      pantryMode: "flag",
       autoBackup: false,
       cloudPhotos: true,
     };
@@ -68,7 +67,6 @@
       categoryOrder: Array.from(new Set(order)),
       purchased: oneOf(o.purchased, ["bottom", "inline", "hide"], d.purchased),
       includeOptional: o.includeOptional === undefined ? d.includeOptional : !!o.includeOptional,
-      pantryMode: oneOf(o.pantryMode === "subtract" ? "flag" : o.pantryMode, ["off", "flag"], d.pantryMode),
       autoBackup: !!o.autoBackup,
       cloudPhotos: o.cloudPhotos === undefined ? d.cloudPhotos : !!o.cloudPhotos,
     };
@@ -193,8 +191,8 @@
       boughtUnit: Un.normalizeUnit(o.boughtUnit),
       stale: !!o.stale,
       cleared: !!o.cleared,
-      inPantry: !!o.inPantry,
-      pantryOverride: !!o.pantryOverride,
+      inPantry: false,
+      pantryOverride: false,
       change: U.str(o.change, 200),
       sources: arr(o.sources).slice(0, 60).map(normalizeSource),
       sortOrder: Number.isFinite(+o.sortOrder) ? +o.sortOrder : i,

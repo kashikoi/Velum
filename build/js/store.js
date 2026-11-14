@@ -262,10 +262,9 @@
 
   // ---------- Shopping lists ----------
   function listItems(listId) { return db.items.filter((i) => i.listId === listId).sort((a, b) => a.sortOrder - b.sortOrder); }
-  // Item names only, one per line, in the list's display order (aisle order when grouped). Skips cleared items
-  // and things set aside as already in the pantry.
+  // Item names only, one per line, in the list's display order (aisle order when grouped). Skips cleared items.
   function listCopyText(listId) {
-    const items = listItems(listId).filter((i) => !i.cleared && !(i.inPantry && !i.pantryOverride));
+    const items = listItems(listId).filter((i) => !i.cleared);
     const order = db.settings.categoryOrder;
     const ordered = db.settings.groupBy === "category"
       ? [].concat.apply([], order.map((cat) => items.filter((i) => i.category === cat)))
@@ -405,11 +404,6 @@
     commit({ quiet: false });
     return it.purchased;
   }
-  function setPantryOverride(id, on) {
-    const it = find("items", id, "item");
-    it.pantryOverride = !!on;
-    commit();
-  }
   function deleteItem(id) {
     const it = find("items", id, "item");
     db.items = db.items.filter((x) => x.id !== id);
@@ -435,14 +429,13 @@
     commit();
     return n;
   }
-  // Reorders within the section the item is displayed in (same aisle / cart / pantry partition as the view).
+  // Reorders within the section the item is displayed in (same aisle / cart partition as the view).
   function moveItem(id, delta) {
     const it = find("items", id, "item");
     const st = db.settings;
-    const inPantry = (x) => x.inPantry && !x.pantryOverride;
     const cartSection = st.purchased === "bottom";
     const peers = listItems(it.listId).filter((x) => {
-      if (x.cleared || inPantry(x) !== inPantry(it)) return false;
+      if (x.cleared) return false;
       if (cartSection && x.purchased !== it.purchased) return false;
       if (cartSection && it.purchased) return true;
       return st.groupBy !== "category" || x.category === it.category;
@@ -550,48 +543,7 @@
     return added.size;
   }
 
-  // ---------- Pantry ----------
-  function addPantry(f) {
-    const name = U.str(f.name, 120);
-    if (!name) fail("Type what you have.");
-    const key = Un.normalizeName(name);
-    const existing = db.pantry.find((p) => Un.normalizeName(p.name) === key);
-    if (existing) { existing.available = true; existing.updatedAt = now(); commit(); return existing; }
-    const qty = f.qtyText !== undefined ? (U.str(f.qtyText) ? Un.parseQuantity(f.qtyText) : null) : (f.qty == null ? null : f.qty);
-    if (f.qtyText && qty == null) fail("Couldn't read that quantity.");
-    const idx = P.catalogIndex(db.ingredients);
-    const ing = P.resolveIngredient(idx, null, name);
-    const p = M.normalizePantry({ name, qty, unit: f.unit, available: true, ingredientId: ing ? ing.id : null, updatedAt: now() });
-    db.pantry.push(p);
-    commit();
-    return p;
-  }
-  function quickAddPantry(text) {
-    const p = Un.parseIngredientLine(text);
-    if (!p) fail("Type what you have.");
-    return addPantry({ name: p.name, qty: p.qty, unit: p.unit });
-  }
-  function updatePantry(id, f) {
-    const p = find("pantry", id, "pantry item");
-    if (f.name !== undefined) { if (!U.str(f.name)) fail("Type a name."); p.name = U.str(f.name, 120); }
-    if (f.qtyText !== undefined) {
-      const qty = U.str(f.qtyText) ? Un.parseQuantity(f.qtyText) : null;
-      if (U.str(f.qtyText) && qty == null) fail("Couldn't read that quantity.");
-      p.qty = qty;
-    }
-    if (f.unit !== undefined) p.unit = Un.normalizeUnit(f.unit);
-    if (f.available !== undefined) p.available = !!f.available;
-    p.updatedAt = now();
-    commit();
-    return p;
-  }
-  function deletePantry(id) {
-    find("pantry", id, "pantry item");
-    db.pantry = db.pantry.filter((p) => p.id !== id);
-    commit();
-  }
-
-  // ---------- Occasional items (saved things to check now and then) ----------
+  // ---------- Common items (saved things you buy often; stored as `occasional`) ----------
   function occasionalItems() { return db.occasional.slice().sort((a, b) => a.sortOrder - b.sortOrder); }
   const sameName = (a, b) => Un.normalizeName(a) === Un.normalizeName(b);
   // Household packaging words the recipe parser leaves in the name ("2 packs paper towels").
@@ -605,7 +557,7 @@
     const name = p && U.str(p.name, 160);
     if (!name) fail("Type an item name.");
     const display = name.charAt(0).toUpperCase() + name.slice(1);
-    if (db.occasional.some((o) => sameName(o.name, display))) fail(display + " is already on your occasional list.");
+    if (db.occasional.some((o) => sameName(o.name, display))) fail(display + " is already in your common items.");
     const o = M.normalizeOccasional({
       name: display, qty: p.qty, unit: p.unit, note: p.prep,
       category: Un.guessCategory(name, Un.normalizeUnit(p.unit)), sortOrder: nextSort(db.occasional),
@@ -619,7 +571,7 @@
     if (f.name !== undefined) {
       const name = U.str(f.name, 160);
       if (!name) fail("Type an item name.");
-      if (db.occasional.some((x) => x !== o && sameName(x.name, name))) fail(name + " is already on your occasional list.");
+      if (db.occasional.some((x) => x !== o && sameName(x.name, name))) fail(name + " is already in your common items.");
       o.name = name;
     }
     if (f.qtyText !== undefined) {
@@ -694,9 +646,8 @@
     ensureMenu, renameMenu, addMeal, updateMeal, moveMeal, copyMeal, removeMeal, toggleMealDone, copyDay, clearDay, clearPlan,
     listItems, listCopyText, listForMenu, createList, createListForPlan, menuForList, previewRegenerate, applyRegenerate, isListOutdated,
     renameList, deleteList, setListStatus,
-    addItem, quickAddItem, updateItem, resetItemToMenu, togglePurchased, setPantryOverride, deleteItem, restoreItem, clearCompleted, moveItem, dropItem,
+    addItem, quickAddItem, updateItem, resetItemToMenu, togglePurchased, deleteItem, restoreItem, clearCompleted, moveItem, dropItem,
     createIngredient, updateIngredient, deleteIngredient, learnFromRecipes,
-    addPantry, quickAddPantry, updatePantry, deletePantry,
     occasionalItems, addOccasional, updateOccasional, deleteOccasional, restoreOccasional, moveOccasional, occasionalOnList, needOccasional,
     clearAll,
   };

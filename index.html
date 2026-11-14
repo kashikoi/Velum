@@ -6,13 +6,13 @@
   <title>Velum</title>
   <meta name="description" content="A local-first meal planner: a recipe library, a reusable eight-day Saturday-through-Saturday menu and a shopping list that builds itself." />
   <meta name="theme-color" content="#163e7a" />
-  <link rel="icon" type="image/svg+xml" href="icon.svg?v=2026.11.14.4" />
-  <link rel="apple-touch-icon" href="icon.svg?v=2026.11.14.4" />
-  <link rel="manifest" href="manifest.webmanifest?v=2026.11.14.4" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg?v=2026.11.14.5" />
+  <link rel="apple-touch-icon" href="icon.svg?v=2026.11.14.5" />
+  <link rel="manifest" href="manifest.webmanifest?v=2026.11.14.5" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" />
-  <link rel="stylesheet" href="styles.css?v=2026.11.14.4" />
+  <link rel="stylesheet" href="styles.css?v=2026.11.14.5" />
   <script>
     if (/iPhone|iPod|Android.*Mobile|Windows Phone/i.test(navigator.userAgent)) {
       document.documentElement.classList.add("phone-checklist");
@@ -707,51 +707,6 @@
     </div>
   </div>
 
-  <!-- Ingredient catalog entry -->
-  <div class="modal" id="ingredientModal" hidden>
-    <div class="modal__backdrop" data-close></div>
-    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="ingredientTitle">
-      <div class="modal__header">
-        <h2 class="modal__title" id="ingredientTitle">Ingredient</h2>
-        <button type="button" class="modal__close" data-close aria-label="Close dialog">&times;</button>
-      </div>
-      <form class="form" id="ingredientForm" autocomplete="off" novalidate>
-        <p class="form__error" id="gError" role="alert" hidden></p>
-        <label class="field">
-          <span class="field__label">Name</span>
-          <input class="field__input" id="gName" maxlength="120" required />
-        </label>
-        <div class="form__row">
-          <label class="field">
-            <span class="field__label">Grocery category</span>
-            <select class="field__input" id="gCategory"></select>
-          </label>
-          <label class="field">
-            <span class="field__label">Default unit</span>
-            <input class="field__input" id="gUnit" list="unitList" maxlength="20" />
-          </label>
-        </div>
-        <label class="field">
-          <span class="field__label">Also known as <em>(comma separated)</em></span>
-          <input class="field__input" id="gAliases" maxlength="600" placeholder="e.g. scallions, spring onions" />
-        </label>
-        <label class="field">
-          <span class="field__label">Grams per cup <em>(optional &mdash; lets cups and grams combine)</em></span>
-          <input class="field__input" id="gDensity" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 120 for flour" />
-        </label>
-        <label class="field">
-          <span class="field__label">Notes</span>
-          <textarea class="field__input field__input--area" id="gNotes" rows="2" maxlength="1000"></textarea>
-        </label>
-        <div class="form__actions">
-          <button type="button" class="btn btn--danger form__actions-left" id="gDelete" hidden>Delete</button>
-          <button type="button" class="btn btn--ghost" data-close>Cancel</button>
-          <button type="submit" class="btn btn--beacon">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Generic dialog (copy day / lists / plan a recipe / reconcile preview) -->
   <div class="modal" id="dialogModal" hidden>
     <div class="modal__backdrop" data-close></div>
@@ -815,13 +770,6 @@
             </label>
           </div>
           <div class="form__row">
-            <label class="field">
-              <span class="field__label">Pantry</span>
-              <select class="field__input" id="sPantry">
-                <option value="flag">Set aside things I already have</option>
-                <option value="off">Ignore the pantry</option>
-              </select>
-            </label>
             <label class="check-row check-row--center">
               <input type="checkbox" id="sOptional" />
               <span>Include optional ingredients</span>
@@ -895,7 +843,7 @@
       </div>
       <div class="about-content">
         <p class="about-content__name">Velum</p>
-        <p class="about-content__version" id="aboutVersion">Version 2026.11.14.4</p>
+        <p class="about-content__version" id="aboutVersion">Version 2026.11.14.5</p>
         <p class="about-content__description">Your personal kitchen companion: keep a recipe library, plan breakfast, lunch and dinner from Saturday through Saturday without calendar dates, and let Velum do the tedious part &mdash; adding up exactly what to buy. Named after velum, the smooth veil of cloud that drapes over a rising one, like the stacked lenticular saucers that park over the Flatirons on a windy winter day.</p>
         <dl class="about-build" id="aboutBuild"></dl>
       </div>
@@ -905,18 +853,18 @@
   <!-- Toast -->
   <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" class="toast__action" id="toastAction" hidden></button></div>
 
-  <script src="js/util.js?v=2026.11.14.4"></script>
-  <script src="js/units.js?v=2026.11.14.4"></script>
-  <script src="js/model.js?v=2026.11.14.4"></script>
-  <script src="js/planner.js?v=2026.11.14.4"></script>
-  <script src="js/store.js?v=2026.11.14.4"></script>
-  <script src="js/sync.js?v=2026.11.14.4"></script>
-  <script src="js/images.js?v=2026.11.14.4"></script>
-  <script src="js/demo.js?v=2026.11.14.4"></script>
-  <script src="js/views.js?v=2026.11.14.4"></script>
-  <script src="js/shell.js?v=2026.11.14.4"></script>
-  <script src="js/editors.js?v=2026.11.14.4"></script>
-  <script src="js/backup.js?v=2026.11.14.4"></script>
-  <script src="js/app.js?v=2026.11.14.4"></script>
+  <script src="js/util.js?v=2026.11.14.5"></script>
+  <script src="js/units.js?v=2026.11.14.5"></script>
+  <script src="js/model.js?v=2026.11.14.5"></script>
+  <script src="js/planner.js?v=2026.11.14.5"></script>
+  <script src="js/store.js?v=2026.11.14.5"></script>
+  <script src="js/sync.js?v=2026.11.14.5"></script>
+  <script src="js/images.js?v=2026.11.14.5"></script>
+  <script src="js/demo.js?v=2026.11.14.5"></script>
+  <script src="js/views.js?v=2026.11.14.5"></script>
+  <script src="js/shell.js?v=2026.11.14.5"></script>
+  <script src="js/editors.js?v=2026.11.14.5"></script>
+  <script src="js/backup.js?v=2026.11.14.5"></script>
+  <script src="js/app.js?v=2026.11.14.5"></script>
 </body>
 </html>

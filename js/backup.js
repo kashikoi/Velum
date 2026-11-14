@@ -51,7 +51,6 @@
     H.updateThemePicker();
     el.sGroup.value = s.groupBy;
     el.sPurchased.value = s.purchased;
-    el.sPantry.value = s.pantryMode;
     el.sOptional.checked = s.includeOptional;
     el.autoBackup.checked = s.autoBackup;
     el.cloudPhotos.checked = s.cloudPhotos;
@@ -67,7 +66,7 @@
       <button type="button" class="mini-btn" data-aisle="${c}" data-delta="1" aria-label="Move ${M.GROCERY_LABEL[c]} later"${i === order.length - 1 ? " disabled" : ""}>▼</button></li>`).join("");
   }
   function saveShopping() {
-    H.attempt(() => S.updateSettings({ groupBy: el.sGroup.value, purchased: el.sPurchased.value, pantryMode: el.sPantry.value, includeOptional: el.sOptional.checked }));
+    H.attempt(() => S.updateSettings({ groupBy: el.sGroup.value, purchased: el.sPurchased.value, includeOptional: el.sOptional.checked }));
   }
   async function renderBackupStatus() {
     const db = S.getDb();
@@ -322,7 +321,7 @@
     H.navigate("#/recipes");
   }
   async function clearAll() {
-    if (!confirm("Delete ALL Velum recipes, menus, shopping lists, catalog and pantry on this device? Your settings and cloud backup are kept.")) return;
+    if (!confirm("Delete ALL Velum recipes, menus, shopping lists and common items on this device? Your settings and cloud backup are kept.")) return;
     if (!confirm("Really clear everything? Consider exporting a backup file first.")) return;
     S.clearAll();
     try { await I.replaceAll({}); } catch (e) { /* best effort */ }

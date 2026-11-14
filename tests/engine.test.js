@@ -309,31 +309,6 @@ test("changing an item's category can be remembered in the ingredient catalog", 
   assert.equal(findItem(list.id, "Pretzel").category, "pantry");
 });
 
-// ---------- Pantry ----------
-test("pantry: flag mode marks items you have; legacy subtract mode becomes flag", () => {
-  fresh();
-  const r = recipe("Bake", [ing("3", "cup", "flour"), ing("2", "tbsp", "olive oil"), ing("1", "tsp", "salt")]);
-  S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
-  S.quickAddPantry("salt");
-  S.quickAddPantry("1 cup flour");
-  S.quickAddPantry("Extra virgin olive oil");
-  let { list } = S.createListForPlan();
-  assert.equal(findItem(list.id, "Salt").inPantry, true);
-  assert.equal(findItem(list.id, "Olive oil").inPantry, true, "synonyms resolve");
-  assert.equal(findItem(list.id, "Flour").inPantry, true);
-
-  S.updateSettings({ pantryMode: "subtract" });
-  assert.equal(S.getDb().settings.pantryMode, "flag");
-  S.applyRegenerate(list.id);
-  assert.equal(findItem(list.id, "Flour").inPantry, true);
-  assert.equal(findItem(list.id, "Flour").qty, 1);
-
-  S.updateSettings({ pantryMode: "off" });
-  S.applyRegenerate(list.id);
-  assert.equal(findItem(list.id, "Salt").inPantry, false);
-  assert.equal(findItem(list.id, "Flour").inPantry, false);
-});
-
 test("ingredient catalog: aliases resolve, duplicates are rejected, learn from recipes", () => {
   fresh();
   const g = S.createIngredient({ name: "Scallions", aliases: "green onions, spring onions", category: "produce" });
@@ -617,11 +592,10 @@ test("replaceDb is all-or-nothing when storage is full", () => {
   assert.equal(S.getDb().recipes.length, 1);
 });
 
-test("copy text lists item names only, one per line, in aisle order without pantry or cleared items", () => {
+test("copy text lists item names only, one per line, in aisle order without cleared items", () => {
   fresh();
   const r = recipe("Sauce", [ing("3", "can", "san marzano tomatoes"), ing("1", "lb", "ground beef"), ing("2", "clove", "garlic"), ing("1", "tsp", "salt")]);
   S.addMeal({ day: MON, meal: "dinner", recipeId: r.id });
-  S.quickAddPantry("salt");
   const { list } = S.createListForPlan();
   S.quickAddItem(list.id, "paper towels");
   const milk = S.quickAddItem(list.id, "milk");
@@ -629,7 +603,7 @@ test("copy text lists item names only, one per line, in aisle order without pant
   S.clearCompleted(list.id);
   const text = S.listCopyText(list.id);
   const lines = text.split("\n");
-  assert.deepEqual(lines.slice().sort(), ["Garlic", "Ground beef", "paper towels", "San marzano tomato"].sort());
+  assert.deepEqual(lines.slice().sort(), ["Garlic", "Ground beef", "paper towels", "Salt", "San marzano tomato"].sort());
   assert.ok(!/\d/.test(text), "no quantities");
   const order = S.getDb().settings.categoryOrder;
   const cats = lines.map((n) => order.indexOf(findItem(list.id, n).category));

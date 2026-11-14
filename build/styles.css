@@ -1546,8 +1546,6 @@ html.day .shop-item { background: var(--glass-hi); }
 .shop-item.is-drop-before::before { top: -6px; }
 .shop-item.is-drop-after::after { bottom: -6px; }
 html.is-shop-dragging, html.is-shop-dragging * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
-.pantry-set { opacity: 0.85; }
-.pantry-set .shop-item { border-style: dashed; }
 .list-foot { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
 
 /* Reconcile preview */
@@ -1560,44 +1558,19 @@ html.day .changes__group--up h4 { color: var(--beacon); }
 .changes__group--rm h4 { color: var(--danger); }
 .changes__group--keep h4 { color: var(--accent-cool); }
 
-/* Pantry & catalog */
-.pantry-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.pantry-row {
-  display: grid; grid-template-columns: auto 1fr 90px 100px auto; gap: 10px; align-items: center;
-  padding: 8px 10px; border-radius: var(--radius-sm); background: var(--glass-hi); border: 1px solid var(--glass-border);
-}
-.pantry-row__name { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
-.pantry-row.is-out .pantry-row__name { color: var(--ink-faint); text-decoration: line-through; }
-.switch { position: relative; width: 44px; height: 26px; flex: none; }
-.switch input { opacity: 0; width: 100%; height: 100%; position: absolute; inset: 0; margin: 0; cursor: pointer; z-index: 1; }
-.switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--track); border: 1px solid var(--glass-border-strong); transition: all 0.15s ease; }
-.switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--ink-faint); transition: all 0.15s ease; }
-.switch input:checked + span { background: var(--good-wash); border-color: var(--good-border); }
-.switch input:checked + span::after { left: 21px; background: var(--good); }
-.switch input:focus-visible + span { outline: 2px solid var(--beacon-bright); outline-offset: 2px; }
-.staples { display: flex; flex-wrap: wrap; gap: 6px; }
-/* Occasional items */
-.occ-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.occ-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; gap: 10px; align-items: center;
-  padding: 10px 12px; border-radius: var(--radius-sm); background: var(--glass-hi); border: 1px solid var(--glass-border);
-}
-.occ-row.is-on { border-color: var(--good-border); background: var(--good-wash); }
-.occ-row__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.occ-row__name { font-weight: 700; font-size: 1rem; overflow-wrap: anywhere; }
-.occ-row__sub { font-size: 0.8rem; color: var(--ink-soft); overflow-wrap: anywhere; }
-.occ-row__state { min-width: 96px; justify-content: center; }
-.occ-row__state.is-on { color: var(--good); border-color: var(--good-border); }
-.occ-row__move { display: flex; gap: 4px; }
-.occ-row__move .mini-btn { width: 28px; height: 28px; font-size: 0.7rem; }
-.occ-row__move .mini-btn:disabled { opacity: 0.35; cursor: default; }
-.table-wrap { overflow-x: auto; }
-.tbl { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.tbl th { text-align: left; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); padding: 8px 10px; border-bottom: 1px solid var(--glass-border); white-space: nowrap; }
-.tbl td { padding: 10px; border-bottom: 1px solid var(--glass-border); vertical-align: middle; }
-.tbl tbody tr:last-child td { border-bottom: none; }
-.tbl tbody tr[data-edit-ingredient] { cursor: pointer; }
-.tbl tbody tr[data-edit-ingredient]:hover { background: var(--glass-hi); }
+/* Common items (shopping list panel) */
+.common { display: flex; flex-direction: column; gap: 10px; }
+.common__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.common__head .section-title { margin: 0; }
+.common__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.common-chip { font-size: 0.9rem; padding: 8px 14px; min-height: 40px; }
+.common-chip.is-on { background: var(--good-wash); border-color: var(--good-border); color: var(--good); }
+span.common-chip.is-on { cursor: default; }
+.common-chip.is-editing { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 14px; }
+.common-chip__name, .common-chip__del { border: none; background: none; color: inherit; font: inherit; cursor: pointer; padding: 4px; }
+.common-chip__del { width: 28px; height: 28px; border-radius: 50%; color: var(--danger); }
+.common-chip__del:hover { background: var(--glass-hi); }
+.common .quick-add { margin: 0; }
 .muted { color: var(--ink-faint); }
 
 /* Restore preview */
@@ -1609,12 +1582,10 @@ html.day .changes__group--up h4 { color: var(--beacon); }
 /* ---------- Scrollbars ---------- */
 .nav-list::-webkit-scrollbar,
 .canvas::-webkit-scrollbar,
-.table-wrap::-webkit-scrollbar,
 .picker__list::-webkit-scrollbar,
 .modal__card::-webkit-scrollbar { width: 8px; height: 8px; }
 .nav-list::-webkit-scrollbar-thumb,
 .canvas::-webkit-scrollbar-thumb,
-.table-wrap::-webkit-scrollbar-thumb,
 .picker__list::-webkit-scrollbar-thumb,
 .modal__card::-webkit-scrollbar-thumb {
   background: var(--glass-border-strong);
@@ -1687,12 +1658,6 @@ html.day .changes__group--up h4 { color: var(--beacon); }
   .modal { padding: 0; align-items: flex-end; }
   .modal__card { max-height: 94dvh; border-radius: 18px 18px 0 0; }
   .modal__card--tall { height: 94dvh; }
-  .pantry-row { grid-template-columns: auto 1fr auto; }
-  .pantry-row__qty, .pantry-row__unit { display: none; }
-  .occ-row { grid-template-columns: auto auto 1fr auto; }
-  .occ-row__main { grid-column: 1 / -1; }
-  .occ-row__move { justify-self: end; }
-  .hide-sm { display: none !important; }
   .page-head__title, .menu-name { font-size: 1.35rem; }
   .recipe-hero__title { font-size: 1.6rem; }
   .day-meal { grid-template-columns: 64px 1fr; }
@@ -1737,7 +1702,6 @@ html.phone-checklist { --tabbar-h: 0px; }
 .phone-checklist .shop-item__edit { grid-column: 3; grid-row: 2; }
 .phone-checklist .shop-item__arrange { grid-column: 3; }
 .phone-checklist .shop-item__arrange .mini-btn { width: 44px; height: 44px; }
-.phone-checklist .shop-item > [data-act="pantry-override"] { grid-column: 2 / -1; min-height: 44px; }
 .phone-checklist .shop-item__name { font-size: 1.1rem; }
 .phone-checklist .shop-item__qty { font-size: 0.9rem; }
 

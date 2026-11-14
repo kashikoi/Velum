@@ -98,7 +98,7 @@
     const list = menu && S.listForMenu(menu.id);
     let shopHtml;
     if (list) {
-      const items = S.listItems(list.id).filter((i) => !i.cleared && !(i.inPantry && !i.pantryOverride));
+      const items = S.listItems(list.id).filter((i) => !i.cleared);
       const bought = items.filter((i) => i.purchased).length;
       const outdated = S.isListOutdated(list.id);
       shopHtml = `<div class="shop-status"><div class="shop-status__nums"><span><strong>${items.length}</strong> items</span><span><strong>${bought}</strong> bought</span><span><strong>${items.length - bought}</strong> to go</span></div>
@@ -397,7 +397,7 @@
       it.qtyEdited ? pill("edited", "info") : "",
       it.toTaste && it.qty != null ? pill("+ to taste", "sm") : "",
     ].join("");
-    const sub = [it.pantryNote ? esc(it.pantryNote) : "", it.note ? esc(it.note) : ""].filter(Boolean).join(" · ");
+    const sub = it.note ? esc(it.note) : "";
     const drag = opts && opts.drag;
     return `<li class="shop-item${it.purchased ? " is-bought" : ""}${it.stale ? " is-stale" : ""}${drag ? " is-draggable" : ""}" data-item-id="${esc(it.id)}">
       ${drag ? `<span class="shop-item__grip" data-grip aria-hidden="true" title="Drag to reorder">⠿</span>` : ""}
@@ -409,8 +409,7 @@
       </button>
       <span class="shop-item__qty">${esc(amount)}</span>
       <button type="button" class="btn btn--ghost btn--tiny shop-item__edit" data-act="open-item" data-id="${esc(it.id)}" aria-label="Edit ${esc(it.name)}">Edit</button>
-      ${opts && opts.pantry ? `<button type="button" class="btn btn--ghost btn--tiny" data-act="pantry-override" data-id="${esc(it.id)}">Need it</button>` : ""}
-      ${ui.arrange && !(opts && opts.pantry) ? `<span class="shop-item__arrange"><button type="button" class="mini-btn" data-act="item-move" data-id="${esc(it.id)}" data-delta="-1" aria-label="Move up">▲</button><button type="button" class="mini-btn" data-act="item-move" data-id="${esc(it.id)}" data-delta="1" aria-label="Move down">▼</button></span>` : ""}
+      ${ui.arrange ? `<span class="shop-item__arrange"><button type="button" class="mini-btn" data-act="item-move" data-id="${esc(it.id)}" data-delta="-1" aria-label="Move up">▲</button><button type="button" class="mini-btn" data-act="item-move" data-id="${esc(it.id)}" data-delta="1" aria-label="Move down">▼</button></span>` : ""}
     </li>`;
   }
   function shopping(db, ui, list) {
@@ -430,11 +429,10 @@
       return `${pageHead("Shopping", "Lists build themselves from your menu plan.", `<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button>`)}
         <div class="empty"><div class="empty__icon">🛒</div><h2 class="empty__title">No shopping list yet</h2>
         <p class="empty__text">${db.meals.length ? "Your menu plan is ready — build a list and Velum will combine every ingredient." : "Plan some meals first, then build a list in one tap. You can also start a blank list for a quick run."}</p>
-        <div class="empty__actions">${newPlanBtn || `<a class="btn btn--beacon" href="#/menu">Plan meals</a>`}<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button><a class="btn btn--ghost" href="#/occasional">🧴 Occasional items</a></div></div>`;
+        <div class="empty__actions">${newPlanBtn || `<a class="btn btn--beacon" href="#/menu">Plan meals</a>`}<button type="button" class="btn btn--ghost" data-act="new-list">+ Blank list</button></div></div>
+        ${commonPanel(db, ui, null)}`;
     }
-    const all = S.listItems(list.id).filter((i) => !i.cleared);
-    const pantrySet = all.filter((i) => i.inPantry && !i.pantryOverride);
-    const items = all.filter((i) => !(i.inPantry && !i.pantryOverride));
+    const items = S.listItems(list.id).filter((i) => !i.cleared);
     const bought = items.filter((i) => i.purchased);
     const linkedMenu = S.menuForList(list);
     const outdated = linkedMenu && S.isListOutdated(list.id);
@@ -464,9 +462,6 @@
     if (shownBought.length && purchased === "bottom") {
       body += `<section class="aisle"><h3 class="aisle__title">In the cart <span class="aisle__count">${shownBought.length}</span></h3><ul class="shop-items"${dragAttr}>${shownBought.map((i) => itemRow(i, ui, dragOpts)).join("")}</ul></section>`;
     }
-    if (pantrySet.length) {
-      body += `<section class="aisle pantry-set"><h3 class="aisle__title">Already in your pantry <span class="aisle__count">${pantrySet.length}</span></h3><ul class="shop-items">${pantrySet.map((i) => itemRow(i, ui, { pantry: true })).join("")}</ul></section>`;
-    }
 
     return `
       <div class="list-bar">
@@ -492,93 +487,44 @@
         <input class="field__input" id="quickAdd" placeholder="Add an item… e.g. 2 lb apples, paper towels" aria-label="Add an item" maxlength="200" />
         <button type="submit" class="btn btn--beacon">Add</button>
       </form>
+      ${commonPanel(db, ui, list)}
       <div class="shop-body">${body}</div>
       <div class="list-foot">
         <div class="row-actions">
           <button type="button" class="btn btn--ghost btn--tiny" data-act="clear-done" data-id="${esc(list.id)}"${bought.length ? "" : " disabled"}>Clear ${bought.length || ""} checked</button>
           <button type="button" class="btn btn--ghost btn--tiny" data-act="arrange" aria-pressed="${ui.arrange}">${ui.arrange ? "Done arranging" : "↕ Arrange"}</button>
           <button type="button" class="btn btn--ghost btn--tiny" data-act="group-toggle">${settings.groupBy === "category" ? "Use custom order" : "Use aisle order"}</button>
-          ${ui.phoneChecklist ? "" : `<a class="btn btn--ghost btn--tiny" href="#/occasional">🧴 Check occasional items${db.occasional.length ? " (" + db.occasional.length + ")" : ""}</a>`}
         </div>
         <button type="button" class="btn btn--ghost btn--tiny" data-act="list-status" data-id="${esc(list.id)}">${list.status === "done" ? "Reopen list" : "✓ Finished shopping"}</button>
       </div>`;
   }
 
-  // ---------- Pantry & catalog ----------
-  const STAPLES = ["Olive oil", "Butter", "Flour", "Sugar", "Salt", "Black pepper", "Rice", "Pasta", "Eggs", "Garlic", "Onions", "Soy sauce", "Baking powder", "Vegetable oil"];
-  function pantry(db, ui) {
-    const tab = ui.pantryTab;
-    const tabs = `<div class="seg seg--inline" role="tablist">
-      <button type="button" class="seg__btn${tab === "pantry" ? " is-active" : ""}" data-act="pantry-tab" data-val="pantry" role="tab" aria-selected="${tab === "pantry"}">🧺 Pantry (${db.pantry.filter((p) => p.available).length})</button>
-      <button type="button" class="seg__btn${tab === "catalog" ? " is-active" : ""}" data-act="pantry-tab" data-val="catalog" role="tab" aria-selected="${tab === "catalog"}">🏷 Ingredient catalog (${db.ingredients.length})</button></div>`;
-    if (tab === "catalog") return pageHead("Ingredients & Pantry", "Teach Velum your ingredients so lists stay tidy.", tabs) + catalog(db);
-    const modeText = { off: "The pantry is currently ignored when building lists.", flag: "Things you have are set aside in an \"Already in your pantry\" section of your list." }[db.settings.pantryMode];
-    const have = new Set(db.pantry.map((p) => Un.normalizeName(p.name)));
-    const staples = STAPLES.filter((s) => !have.has(Un.normalizeName(s)));
-    const rows = db.pantry.slice().sort((a, b) => (b.available - a.available) || a.name.localeCompare(b.name)).map((p) => `<li class="pantry-row${p.available ? "" : " is-out"}">
-      <label class="switch" title="${p.available ? "I have this" : "Ran out"}"><input type="checkbox" data-change="pantry-avail" data-id="${esc(p.id)}"${p.available ? " checked" : ""} aria-label="Have ${esc(p.name)}" /><span></span></label>
-      <span class="pantry-row__name">${esc(p.name)}</span>
-      <input class="field__input field__input--sm pantry-row__qty" value="${p.qty == null ? "" : esc(Un.formatQty(p.qty, p.unit))}" placeholder="amount" data-change="pantry-qty" data-id="${esc(p.id)}" aria-label="Amount of ${esc(p.name)} (optional)" />
-      <input class="field__input field__input--sm pantry-row__unit" value="${esc(p.unit ? Un.unitLabel(p.unit, p.qty) : "")}" list="unitList" placeholder="unit" data-change="pantry-unit" data-id="${esc(p.id)}" aria-label="Unit for ${esc(p.name)}" />
-      <button type="button" class="mini-btn mini-btn--danger" data-act="pantry-del" data-id="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">✕</button></li>`).join("");
-    return `${pageHead("Ingredients & Pantry", "Optional — mark what's already in your kitchen.", tabs)}
-      <div class="insight"><span class="insight__body">${modeText} <button type="button" class="link-btn" data-act="open-settings">Change</button></span></div>
-      <form class="quick-add" data-form="pantry-add" autocomplete="off">
-        <input class="field__input" id="pantryAdd" placeholder="Add something you have… e.g. rice, 2 lb flour" aria-label="Add to pantry" maxlength="200" />
-        <button type="submit" class="btn btn--beacon">Add</button>
-      </form>
-      ${staples.length ? `<div><h3 class="section-title">Common staples</h3><div class="staples">${staples.map((s) => `<button type="button" class="chip" data-act="staple" data-val="${esc(s)}">+ ${esc(s)}</button>`).join("")}</div></div>` : ""}
-      ${rows ? `<ul class="pantry-list">${rows}</ul>` : `<p class="empty-note">Your pantry is empty. You don't need to track anything here — it just helps trim your shopping list.</p>`}`;
-  }
-  function catalog(db) {
-    const rows = db.ingredients.slice().sort((a, b) => a.name.localeCompare(b.name)).map((g) => `<tr data-edit-ingredient="${esc(g.id)}" tabindex="0">
-      <td><strong>${esc(g.name)}</strong>${g.aliases.length ? `<div class="muted" style="font-size:0.74rem">aka ${esc(g.aliases.join(", "))}</div>` : ""}</td>
-      <td>${M.GROCERY_ICON[g.category]} ${M.GROCERY_LABEL[g.category]}</td>
-      <td class="hide-sm">${esc(g.defaultUnit ? Un.unitLabel(g.defaultUnit, 2) : "—")}</td>
-      <td class="hide-sm">${g.gramsPerCup ? esc(String(g.gramsPerCup)) + " g/cup" : "—"}</td></tr>`).join("");
-    return `<div class="row-actions">
-        <button type="button" class="btn btn--beacon btn--tiny" data-act="new-ingredient">+ Add ingredient</button>
-        <button type="button" class="btn btn--ghost btn--tiny" data-act="learn">Add everything from my recipes</button>
-      </div>
-      <p class="field__hint">The catalog is optional. Entries set the aisle for an ingredient, merge different names (aliases) into one shopping line, and with &ldquo;grams per cup&rdquo; let cups and grams combine.</p>
-      ${rows ? `<div class="panel table-wrap"><table class="tbl"><thead><tr><th>Ingredient</th><th>Aisle</th><th class="hide-sm">Default unit</th><th class="hide-sm">Density</th></tr></thead><tbody>${rows}</tbody></table></div>`
-        : `<p class="empty-note">No catalog entries yet. Velum still guesses aisles on its own; add entries when you want to correct or merge something.</p>`}`;
-  }
-
-  // ---------- Occasional items ----------
-  function occasional(db, ui, list) {
+  // ---------- Common items (saved things you buy often, shown on the shopping list) ----------
+  function commonPanel(db, ui, list) {
     const items = S.occasionalItems();
-    let onListCount = 0;
-    const rows = items.map((o, i) => {
+    const editing = ui.commonEdit && items.length > 0;
+    const chips = items.map((o) => {
+      const name = esc(o.name);
+      if (editing) {
+        return `<span class="chip common-chip is-editing"><button type="button" class="common-chip__name" data-act="occ-edit" data-id="${esc(o.id)}" aria-label="Edit ${name}">${name}</button><button type="button" class="common-chip__del" data-act="occ-del" data-id="${esc(o.id)}" aria-label="Remove ${name} from common items">✕</button></span>`;
+      }
       const it = list && S.occasionalOnList(list.id, o);
-      const need = it && !it.purchased;
-      if (need) onListCount++;
-      const amount = o.qty == null ? "" : Un.formatAmount(o.qty, o.unit);
-      const sub = [amount, o.note, M.GROCERY_ICON[o.category] + " " + M.GROCERY_LABEL[o.category]].filter(Boolean).map(esc).join(" · ");
-      const state = need
-        ? (it.manual
-          ? `<button type="button" class="btn btn--ghost btn--tiny occ-row__state is-on" data-act="occ-unneed" data-id="${esc(it.id)}" aria-pressed="true" aria-label="Remove ${esc(o.name)} from the shopping list">✓ On list</button>`
-          : `<span class="occ-row__state">${pill("✓ On list (from menu)", "good")}</span>`)
-        : `<button type="button" class="btn btn--beacon btn--tiny occ-row__state" data-act="occ-need" data-id="${esc(o.id)}" aria-pressed="false" aria-label="Add ${esc(o.name)} to the shopping list">${it ? "Need again" : "Need it"}</button>`;
-      return `<li class="occ-row${need ? " is-on" : ""}">
-        <span class="occ-row__main"><span class="occ-row__name">${esc(o.name)}</span><span class="occ-row__sub">${sub}</span></span>
-        ${state}
-        <button type="button" class="btn btn--ghost btn--tiny" data-act="occ-edit" data-id="${esc(o.id)}" aria-label="Edit ${esc(o.name)}">Edit</button>
-        <span class="occ-row__move"><button type="button" class="mini-btn" data-act="occ-move" data-id="${esc(o.id)}" data-delta="-1" aria-label="Move ${esc(o.name)} up"${i === 0 ? " disabled" : ""}>▲</button><button type="button" class="mini-btn" data-act="occ-move" data-id="${esc(o.id)}" data-delta="1" aria-label="Move ${esc(o.name)} down"${i === items.length - 1 ? " disabled" : ""}>▼</button></span>
-        <button type="button" class="mini-btn mini-btn--danger" data-act="occ-del" data-id="${esc(o.id)}" aria-label="Delete ${esc(o.name)} from occasional items">✕</button>
-      </li>`;
+      if (it && !it.purchased) {
+        return it.manual
+          ? `<button type="button" class="chip common-chip is-on" data-act="occ-unneed" data-id="${esc(it.id)}" aria-pressed="true" aria-label="Take ${name} off the list">✓ ${name}</button>`
+          : `<span class="chip common-chip is-on" title="Already on the list from your menu">✓ ${name}</span>`;
+      }
+      return `<button type="button" class="chip common-chip" data-act="occ-need" data-id="${esc(o.id)}" aria-pressed="false" aria-label="Add ${name} to the list">+ ${name}</button>`;
     }).join("");
-    const target = list
-      ? `Tap <strong>Need it</strong> to add an item to <a href="#/shopping/${esc(list.id)}"><strong>${esc(list.name)}</strong></a>${onListCount ? ` · ${U.plural(onListCount, "item")} already on it` : ""}.`
-      : `Tap <strong>Need it</strong> and Velum will start a shopping list for you.`;
-    return `${pageHead("Occasional items", "Things you buy now and then. Check if you're running low, then add what you need.", "")}
-      <div class="insight"><span class="insight__body">${target}</span></div>
-      <form class="quick-add" data-form="occ-add" autocomplete="off">
-        <input class="field__input" id="occAdd" placeholder="Add an item… e.g. shampoo, 2 packs paper towels" aria-label="Add an occasional item" maxlength="200" />
-        <button type="submit" class="btn btn--beacon">Add</button>
-      </form>
-      ${rows ? `<ul class="occ-list" aria-label="Occasional items">${rows}</ul>`
-        : `<p class="empty-note">Nothing saved yet. Add things like shampoo, toothpaste, laundry detergent or batteries. They stay here for next time.</p>`}`;
+    return `<section class="panel common" aria-label="Common items">
+        <div class="common__head"><h3 class="section-title">Common items</h3>${items.length ? `<button type="button" class="btn btn--ghost btn--tiny" data-act="common-edit" aria-pressed="${editing}">${editing ? "Done" : "Edit"}</button>` : ""}</div>
+        ${chips ? `<p class="field__hint">${editing ? "Tap a name to change it, or ✕ to remove it from your common items." : "Tap to add to this list; tap again to take it off."}</p><div class="common__chips">${chips}</div>`
+          : `<p class="empty-note">Save things you buy often &mdash; dog food, oat milk, ice, shampoo &mdash; and add them to any list with one tap.</p>`}
+        <form class="quick-add" data-form="occ-add" autocomplete="off">
+          <input class="field__input" id="occAdd" placeholder="Save a common item… e.g. dog food" aria-label="Save a common item" maxlength="200" />
+          <button type="submit" class="btn btn--ghost">Save</button>
+        </form>
+      </section>`;
   }
 
   // ---------- Dialog bodies ----------
@@ -611,10 +557,10 @@
       </dl>
       <div class="restore-counts">
         ${stat("Recipes", c.recipes + (c.archived ? " (+" + c.archived + " archived)" : ""))}${stat("Photos", c.photos)}${stat("Menus", c.menus)}${stat("Meals", c.meals)}
-        ${stat("Lists", c.lists)}${stat("List items", c.items)}${stat("Catalog", c.ingredients)}${stat("Pantry", c.pantry)}${c.occasional != null ? stat("Occasional", c.occasional) : ""}
+        ${stat("Lists", c.lists)}${stat("List items", c.items)}${c.occasional != null ? stat("Common items", c.occasional) : ""}
       </div>
       <p class="field__hint" style="margin-top:10px">On this device now: ${U.plural(lc.recipes, "recipe")}, ${U.plural(lc.meals, "meal")}, ${U.plural(lc.items, "list item")}.${lc.newer ? " <strong>This device has changes newer than the backup.</strong>" : ""}</p>`;
   }
 
-  V.views = { home, menuPlan, menuDay, library, recipeDetail, shopping, pantry, occasional, changesHtml, restorePreviewHtml, thumb, imgTag, placeholder, recipeIcon, filterRecipes, mealName, dayOptions };
+  V.views = { home, menuPlan, menuDay, library, recipeDetail, shopping, changesHtml, restorePreviewHtml, thumb, imgTag, placeholder, recipeIcon, filterRecipes, mealName, dayOptions };
 })(typeof window !== "undefined" ? window.Velum : globalThis.Velum);

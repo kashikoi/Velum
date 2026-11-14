@@ -5,7 +5,7 @@ this up in a new session, read this first.
 
 ## What this is
 - A personal, local-first **meal planner**: recipe library → reusable eight-day breakfast/lunch/dinner plan →
-  auto-consolidated shopping list → optional pantry. Part of the kashikoi cloud-themed app suite
+  auto-consolidated shopping list with a "Common items" panel. Part of the kashikoi cloud-themed app suite
   (Cumulus, Nimbus, Cirrus, Stratus, Anvil, Arcus, Virga). Intended repo: github.com/kashikoi/Velum,
   Pages: https://kashikoi.github.io/Velum/ (served from `main` /).
 - Named after the velum cloud. Scenic background is an inline SVG of a stacked lenticular cloud over
@@ -24,7 +24,7 @@ this up in a new session, read this first.
 - Rendering: `views.js` pure string templates with `escapeHtml()` on every user string. Clicks are
   delegated on `#canvas` via `data-act`, changes via `data-change`, input via `data-input`, forms via
   `data-form`. Hash routes: `#/`, `#/menu`, `#/day/<day-key>`, `#/recipes`, `#/recipe/<id>?meal=&cook=1`,
-  `#/shopping/<listId>`, `#/occasional`, `#/pantry`. `shell.render()` restores focus/caret for inputs with an `id`.
+  `#/shopping/<listId>` (legacy `#/occasional` redirects to shopping; `#/pantry` falls back to home). `shell.render()` restores focus/caret for inputs with an `id`.
 - Schema v2: meals use **day key + meal type**, with `model.PLAN_DAYS` in fixed order from `saturday`
   through `following-saturday` (eight independent days, 24 slots). One reusable menu, no calendar dates,
   week history, or automatic rollover. Lists link by `menuId`; shopping includes both Saturdays.
@@ -36,7 +36,11 @@ this up in a new session, read this first.
 - Item `key` = `<i:catalogId | n:normalizedName>|item`. Legacy keys ending in `volume|mass|count:<unit>|taste`
   are migrated in `reconcile()` (paired by ingredient, checked/edited amounts kept). Don't change key shape
   without a migration — reconciliation matches on it.
-- Pantry mode is `off|flag`; legacy `subtract` normalizes to `flag`.
+- Pantry and the "Ingredients & pantry" page were removed (user request). `db.pantry` is kept only for backup
+  round-trips; `normalizeItem()` forces `inPantry`/`pantryOverride` false. The ingredient catalog has no UI but is still
+  used for aisle memory ("remember aisle" on list items) and name merging.
+- "Common items" = `db.occasional` (old name kept to avoid a migration), rendered by `views.commonPanel()` inside the
+  shopping view; actions `occ-need` / `occ-unneed` / `occ-edit` / `occ-del` / `common-edit`.
 - No servings anywhere (user preference: a recipe is just a list of ingredients). Recipes, meals and settings
   have no `servings`/`measurement`; `normalizeDb()` drops them from older data. Don't reintroduce scaling.
 - Recipes referenced by planned meals are archived (`archived: true`), never erased. Photos can be shared by

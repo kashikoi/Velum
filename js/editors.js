@@ -1,4 +1,4 @@
-/* Velum — editors: recipe editor, recipe picker, meal / shopping item / catalog dialogs. */
+/* Velum — editors: recipe editor, recipe picker, meal / shopping item dialogs. */
 (function (V) {
   "use strict";
   const U = V.util;
@@ -368,34 +368,6 @@
     H.toast(it.name + " removed.", { label: "Undo", run: () => S.restoreItem(it) });
   }
 
-  // =================== Ingredient catalog dialog ===================
-  let ingredientId = null;
-  function openIngredientModal(id) {
-    const g = id ? S.getDb().ingredients.find((x) => x.id === id) : null;
-    ingredientId = g ? g.id : null;
-    el.ingredientTitle.textContent = g ? "Edit ingredient" : "New ingredient";
-    el.gName.value = g ? g.name : "";
-    el.gCategory.innerHTML = categoryOptions(g ? g.category : "other");
-    el.gUnit.value = g && g.defaultUnit ? Un.unitLabel(g.defaultUnit, 2) : "";
-    el.gAliases.value = g ? g.aliases.join(", ") : "";
-    el.gDensity.value = g && g.gramsPerCup ? g.gramsPerCup : "";
-    el.gNotes.value = g ? g.notes : "";
-    el.gDelete.hidden = !g;
-    el.gError.hidden = true;
-    H.openModal("ingredientModal", el.gName);
-  }
-  function saveIngredient(e) {
-    e.preventDefault();
-    const f = { name: el.gName.value, category: el.gCategory.value, defaultUnit: el.gUnit.value, aliases: el.gAliases.value, gramsPerCup: el.gDensity.value, notes: el.gNotes.value };
-    const res = H.attempt(() => (ingredientId ? S.updateIngredient(ingredientId, f) : S.createIngredient(f)), el.gError);
-    if (res.ok) { H.closeModal("ingredientModal"); H.toast("Ingredient saved."); }
-  }
-  function deleteIngredientFromModal() {
-    if (!confirm("Remove this ingredient from your catalog? Recipes keep their ingredient text.")) return;
-    const res = H.attempt(() => S.deleteIngredient(ingredientId), el.gError);
-    if (res.ok) { H.closeModal("ingredientModal"); H.toast("Ingredient removed."); }
-  }
-
   function bind() {
     // Recipe editor
     el.recipeForm.addEventListener("submit", saveRecipe);
@@ -502,11 +474,9 @@
     });
 
     // Ingredient dialog
-    el.ingredientForm.addEventListener("submit", saveIngredient);
-    el.gDelete.addEventListener("click", deleteIngredientFromModal);
 
     el.unitList.innerHTML = Un.UNIT_CHOICES.filter(Boolean).map((u) => `<option value="${esc(Un.unitLabel(u, 2))}">${esc(Un.unitInfo(u).label || u)}</option>`).join("");
   }
 
-  V.editors = { openRecipeEditor, openPicker, openMealModal, openItemModal, openIngredientModal, releaseImage, isEditingRecipe: () => !!draft, bind };
+  V.editors = { openRecipeEditor, openPicker, openMealModal, openItemModal, releaseImage, isEditingRecipe: () => !!draft, bind };
 })(window.Velum);
